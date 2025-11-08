@@ -108,3 +108,11 @@
     cursor: pointer;
     background-color: var(--input);
 }
+
+.output{
+    margin: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: var(--muted);
+    font-family: monospace;
+}

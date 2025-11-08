@@ -28,13 +28,33 @@ async function runCode(code: string, pyodide: any, vals: any[], setOutput: (outp
     setOutput(out?.toString());
 }
 
-export default function CodeEditor({parameters}: {parameters: any}) {
+async function runAllTestCases(code: string, pyodide: any, testCases: any[], setTestCases: (testCases: any[]) => void){
+    const updatedTestCases = [...testCases];
+    
+    for (let i = 0; i < testCases.length; i++) {
+        try {
+            // Load function once
+            if (i === 0) {
+                await pyodide.runPythonAsync(code);
+            }
+            // Run each test case
+            const out = await pyodide.runPythonAsync("game(" + testCases[i].vals.join(", ") + ")");
+            updatedTestCases[i] = {...updatedTestCases[i], output: out?.toString() || ""};
+        } catch (e) {
+            updatedTestCases[i] = {...updatedTestCases[i], output: "Error: " + e.message};
+        }
+    }
+    
+    setTestCases(updatedTestCases);
+}
+
+export default function CodeEditor({time, parameters}: {time: number, parameters: any}) {
   const [value, setValue] = useState(generateStartFunction(parameters));
   const [result, setResult] = useState("");
   const [pythonLoading, setPythonLoading] = useState(true);
   const pyodideRef = useRef(null);
-  const [time, setTime] = useState(60);
-  const [testCases, setTestCases] = useState([{name: 'case 1', vals:[1,2]},{name: 'case 2', vals:[1,2]}]);
+ 
+  const [testCases, setTestCases] = useState([{name: 'case 1', vals:[1,2], output: ""},{name: 'case 2', vals:[1,2], output: ""}]);
     const [activeTestCase, setActiveTestCase] = useState(0);
     
     useEffect(() => {
@@ -101,7 +121,7 @@ export default function CodeEditor({parameters}: {parameters: any}) {
             <h2>Testing</h2>
             </div>
             <div>
-                <button className={styles.button} onClick={() => runCode(value,pyodideRef.current,testCases[activeTestCase].vals, setResult)}>Run Code </button>
+                <button className={styles.button} onClick={() => runAllTestCases(value,pyodideRef.current,testCases, setTestCases)}>Run Code </button>
             </div>
         </div></div>
               <div className={styles.panel}>
@@ -110,13 +130,23 @@ export default function CodeEditor({parameters}: {parameters: any}) {
                         {testCases.map((testCase, index) => (
                             <button className={styles.testTab + (index === activeTestCase ? " " + styles.active : "")} key={index} onClick={() => setActiveTestCase(index)}>{testCase.name}</button>
                         ))}
+                        <button className={styles.testTab} onClick={() => {
+                            const newTestCase = {
+                                name: `case ${testCases.length + 1}`,
+                                vals: parameters.map(() => 0),
+                                output: ""
+                            };
+                            setTestCases([...testCases, newTestCase]);
+                            setActiveTestCase(testCases.length);
+                        }}>+</button>
                     </div>
+                    <div className={styles.output}>Output: {testCases[activeTestCase].output}</div>
                     {testCases[activeTestCase].vals.map((val, index) => (
                         <div className={styles.caseParam} key={index}>{parameters[index].name}: <input className={styles.caseParamInput} value={val} onChange={(e) => setTestCases(testCases.map((testCase, i) => i === activeTestCase ? {...testCase, vals: testCase.vals.map((v, j) => j === index ? e.target.value : v)} : testCase))}></input></div>
                     ))}
 
                 </div>
-                <div>RESULT: {result}</div>
+                
               </div>
             </div>
           </ResizablePanel>

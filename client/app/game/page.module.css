@@ -1,0 +1,11 @@
+.header {
+    margin-bottom: 16px;
+    width: calc(100%);
+    /* background-color: var(--muted); */
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-bottom: 1px solid var(--border);
+    padding: 16px;
+    height: 64px;
+    padding-left: 32px;
+}
