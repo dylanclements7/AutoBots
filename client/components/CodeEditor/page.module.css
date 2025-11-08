@@ -1,0 +1,118 @@
+.panel {
+  margin: 5px;
+  background-color: var(--card);
+  border-radius: var(--radius-md);
+  height: calc(100% - 10px);
+  width: calc(100% - 10px);
+  border-radius: 5px;
+  padding: 5px;
+  padding-top: 0px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100% - 10px)
+}
+
+.topPanel {
+  margin: 5px;
+  background-color: var(--muted);
+  border-radius: var(--radius-md);
+  height: calc(40px);
+  width: calc(100% - 10px);
+  border-radius: 5px;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.header{
+  /* background-color: var(--secondary); */
+  border-bottom: 1px solid var(--border);
+  height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 5px;
+  padding-left: 15px;
+}
+
+.button {
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.button:hover {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+} 
+
+.testTop{
+    border-bottom: 1px solid var(--border);
+  height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.time{
+  background-color: var(--muted);
+  border-radius: 5px; 
+  width: 200px; 
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;  
+}
+
+.testTabs{
+    display: flex;
+    align-items: center;
+}
+
+.testTab{
+    margin: 5px;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background-color: var(--card);
+}
+
+.testTab:hover{
+    background-color: var(--muted);
+}
+
+.testTab.active{
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.caseParam{
+    margin: 5px;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background-color: var(--card);
+}
+.caseParamInput{
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background-color: var(--input);
+}
+
+.output{
+    margin: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: var(--muted);
+    font-family: monospace;
+}
