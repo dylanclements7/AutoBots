@@ -1,7 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from typing import Optional
+from typing import Optional, Dict, Any
+import importlib
 
 app = FastAPI()
 
@@ -12,79 +13,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-lobbies = {
-    "demo": {
-        "players": {},  # username -> websocket
-        "ready": set(),
-        "bot_codes": {},  # username -> code (stored but not used by server)
-        "board": [[" " for _ in range(7)] for _ in range(6)],
-        "turn_order": [],  # list of usernames
-        "current_turn": 0,
-        "state": "lobby",  # "lobby" | "ide" | "playing" | "finished"
-        "pending_moves": {},  # username -> asyncio.Queue for moves
-    }
+# Global lobbies structure: lobby_id -> lobby_state
+lobbies: Dict[str, Dict[str, Any]] = {}
+
+# Game registry - maps game_type to module
+GAMES = {
+    "connect4": "server.games.connect4",
+    # "tictactoe": "games.tictactoe",
+    # "chess": "games.chess",
 }
 
 
-def check_winner(board) -> Optional[str]:
-    """Check for a winner in Connect 4. Returns 'X', 'O', 'draw', or None"""
-    rows, cols = 6, 7
-    
-    # Check horizontal
-    for r in range(rows):
-        for c in range(cols - 3):
-            if board[r][c] != " " and all(board[r][c+i] == board[r][c] for i in range(4)):
-                return board[r][c]
-    
-    # Check vertical
-    for r in range(rows - 3):
-        for c in range(cols):
-            if board[r][c] != " " and all(board[r+i][c] == board[r][c] for i in range(4)):
-                return board[r][c]
-    
-    # Check diagonal (down-right)
-    for r in range(rows - 3):
-        for c in range(cols - 3):
-            if board[r][c] != " " and all(board[r+i][c+i] == board[r][c] for i in range(4)):
-                return board[r][c]
-    
-    # Check diagonal (down-left)
-    for r in range(rows - 3):
-        for c in range(3, cols):
-            if board[r][c] != " " and all(board[r+i][c-i] == board[r][c] for i in range(4)):
-                return board[r][c]
-    
-    # Check for draw
-    if all(board[0][c] != " " for c in range(cols)):
-        return "draw"
-    
-    return None
+def get_game_module(game_type: str):
+    """Dynamically import and return game module"""
+    if game_type not in GAMES:
+        raise ValueError(f"Unknown game type: {game_type}")
+    return importlib.import_module(GAMES[game_type])
 
 
-def is_valid_move(board, col: int) -> bool:
-    """Check if a column has space"""
-    if col < 0 or col >= 7:
-        return False
-    return board[0][col] == " "
-
-
-def make_move(board, col: int, symbol: str) -> bool:
-    """Make a move and return success"""
-    if not is_valid_move(board, col):
-        return False
+def create_lobby(lobby_id: str, game_type: str):
+    """Create a new lobby for a specific game type"""
+    game_module = get_game_module(game_type)
     
-    # Drop piece
-    for row in reversed(board):
-        if row[col] == " ":
-            row[col] = symbol
-            break
+    lobbies[lobby_id] = {
+        "game_type": game_type,
+        "players": {},  # username -> websocket
+        "ready": set(),
+        "bot_codes": {},  # username -> True (just tracking submission)
+        "board": game_module.create_initial_board(),
+        "turn_order": [],
+        "current_turn": 0,
+        "state": "lobby",  # "lobby" | "ide" | "playing" | "finished"
+        "pending_moves": {},  # username -> asyncio.Queue
+        "game_data": {},  # Game-specific data
+    }
+    return lobbies[lobby_id]
+
+
+async def broadcast(lobby_id: str, message: dict, exclude: Optional[str] = None):
+    """Send message to all players in a lobby"""
+    lobby = lobbies.get(lobby_id)
+    if not lobby:
+        return
     
-    return True
-
-
-async def broadcast(lobby_name, message, exclude=None):
-    """Send message to all players in the lobby."""
-    lobby = lobbies[lobby_name]
     for username, ws in lobby["players"].items():
         if exclude and username == exclude:
             continue
@@ -94,38 +65,42 @@ async def broadcast(lobby_name, message, exclude=None):
             pass
 
 
-async def run_game(lobby_name):
-    """Main game loop that requests moves from players"""
-    lobby = lobbies[lobby_name]
+async def run_game(lobby_id: str):
+    """Main game loop - delegates to game-specific logic"""
+    lobby = lobbies.get(lobby_id)
+    if not lobby:
+        return
+    
+    game_module = get_game_module(lobby["game_type"])
     players = lobby["turn_order"]
     
-    if len(players) < 2:
-        print("Not enough players to start game.")
+    if len(players) < game_module.MIN_PLAYERS:
+        print(f"Not enough players. Need {game_module.MIN_PLAYERS}, have {len(players)}")
         return
     
     # Reset board
-    board = [[" " for _ in range(7)] for _ in range(6)]
-    lobby["board"] = board
+    lobby["board"] = game_module.create_initial_board()
     lobby["current_turn"] = 0
     lobby["state"] = "playing"
     
     # Send game start with player assignments
     for i, username in enumerate(players):
-        symbol = "X" if i == 0 else "O"
+        symbol = game_module.get_player_symbol(i)
         ws = lobby["players"][username]
         await ws.send_json({
             "type": "game_start",
-            "board": board,
+            "board": lobby["board"],
             "symbol": symbol,
-            "players": players
+            "players": players,
+            "game_type": lobby["game_type"]
         })
     
-    print(f"Game started with players: {players}")
+    print(f"Game '{lobby['game_type']}' started with players: {players}")
     
     # Game loop
     while lobby["state"] == "playing":
         current_player = players[lobby["current_turn"]]
-        symbol = "X" if lobby["current_turn"] == 0 else "O"
+        symbol = game_module.get_player_symbol(lobby["current_turn"])
         ws = lobby["players"].get(current_player)
         
         if not ws:
@@ -136,7 +111,7 @@ async def run_game(lobby_name):
             # Request move from current player
             await ws.send_json({
                 "type": "your_turn",
-                "board": board,
+                "board": lobby["board"],
                 "symbol": symbol,
             })
             
@@ -147,79 +122,95 @@ async def run_game(lobby_name):
             if not queue:
                 print(f"No queue for {current_player}")
                 break
-                
-            col = await asyncio.wait_for(queue.get(), timeout=15)
             
-            print(f"{current_player} played column {col}")
+            move = await asyncio.wait_for(queue.get(), timeout=15)
+            print(f"{current_player} sent move: {move}")
             
-            # Validate and make move
-            if not make_move(board, col, symbol):
-                print(f"Invalid move from {current_player}: column {col}")
-                # End game, other player wins
+            # Validate and make move using game-specific logic
+            is_valid, error_msg = game_module.validate_move(lobby["board"], move, symbol)
+            
+            if not is_valid:
+                print(f"Invalid move from {current_player}: {error_msg}")
                 other_player = players[1 - lobby["current_turn"]]
-                await broadcast(lobby_name, {
+                await broadcast(lobby_id, {
                     "type": "game_over",
                     "winner": other_player,
-                    "reason": f"{current_player} made invalid move",
-                    "board": board
+                    "reason": f"{current_player} made invalid move: {error_msg}",
+                    "board": lobby["board"]
                 })
                 lobby["state"] = "finished"
                 break
             
+            # Apply the move
+            game_module.apply_move(lobby["board"], move, symbol)
+            
             # Broadcast board update
-            await broadcast(lobby_name, {
+            await broadcast(lobby_id, {
                 "type": "board_update",
-                "board": board
+                "board": lobby["board"]
             })
             
             # Check for winner
-            winner_symbol = check_winner(board)
-            if winner_symbol:
+            winner = game_module.check_winner(lobby["board"])
+            if winner:
                 lobby["state"] = "finished"
-                if winner_symbol == "draw":
-                    await broadcast(lobby_name, {
+                if winner == "draw":
+                    await broadcast(lobby_id, {
                         "type": "game_over",
                         "winner": "draw",
-                        "reason": "Board full",
-                        "board": board
+                        "reason": "Game ended in a draw",
+                        "board": lobby["board"]
                     })
                 else:
-                    winner_player = players[0] if winner_symbol == "X" else players[1]
-                    await broadcast(lobby_name, {
+                    # Find which player has this symbol
+                    winner_player = None
+                    for i, player in enumerate(players):
+                        if game_module.get_player_symbol(i) == winner:
+                            winner_player = player
+                            break
+                    
+                    await broadcast(lobby_id, {
                         "type": "game_over",
                         "winner": winner_player,
-                        "reason": "Connected 4",
-                        "board": board
+                        "reason": f"{winner_player} wins!",
+                        "board": lobby["board"]
                     })
                 break
             
             # Next turn
-            lobby["current_turn"] = (lobby["current_turn"] + 1) % 2
-            await asyncio.sleep(0.3)  # Small delay between turns
+            lobby["current_turn"] = (lobby["current_turn"] + 1) % len(players)
+            await asyncio.sleep(0.3)
             
         except asyncio.TimeoutError:
             print(f"{current_player} took too long!")
             other_player = players[1 - lobby["current_turn"]]
-            await broadcast(lobby_name, {
+            await broadcast(lobby_id, {
                 "type": "game_over",
                 "winner": other_player,
                 "reason": f"{current_player} timeout",
-                "board": board
+                "board": lobby["board"]
             })
             lobby["state"] = "finished"
             break
         except Exception as e:
             print(f"Error in game loop: {e}")
+            import traceback
+            traceback.print_exc()
             break
     
     print("Game ended")
 
 
-@app.websocket("/ws/demo/{username}")
-async def websocket_demo(websocket: WebSocket, username: str):
+@app.websocket("/ws/{lobby_id}/{username}")
+async def websocket_endpoint(websocket: WebSocket, lobby_id: str, username: str):
     await websocket.accept()
-    lobby_name = "demo"
-    lobby = lobbies[lobby_name]
+    
+    # Create lobby if it doesn't exist (default to connect4)
+    # In production, you'd pass game_type as a query param
+    if lobby_id not in lobbies:
+        create_lobby(lobby_id, "connect4")
+    
+    lobby = lobbies[lobby_id]
     
     # Check if username taken
     if username in lobby["players"]:
@@ -236,15 +227,16 @@ async def websocket_demo(websocket: WebSocket, username: str):
         lobby["turn_order"].append(username)
     lobby["pending_moves"][username] = asyncio.Queue()
     
-    print(f"{username} connected. Total players: {len(lobby['players'])}")
+    print(f"{username} connected to {lobby_id}. Total players: {len(lobby['players'])}")
     
     # Send lobby state
     await broadcast(
-        lobby_name,
+        lobby_id,
         {
             "type": "lobby_state",
             "players": list(lobby["players"].keys()),
             "ready": list(lobby["ready"]),
+            "game_type": lobby["game_type"]
         },
     )
     
@@ -255,10 +247,10 @@ async def websocket_demo(websocket: WebSocket, username: str):
             
             if msg_type == "ready":
                 lobby["ready"].add(username)
-                print(f"{username} is ready. Ready: {len(lobby['ready'])}/{len(lobby['players'])}")
+                print(f"{username} is ready in {lobby_id}")
                 
                 await broadcast(
-                    lobby_name,
+                    lobby_id,
                     {
                         "type": "lobby_state",
                         "players": list(lobby["players"].keys()),
@@ -266,38 +258,42 @@ async def websocket_demo(websocket: WebSocket, username: str):
                     },
                 )
                 
+                game_module = get_game_module(lobby["game_type"])
+                min_players = game_module.MIN_PLAYERS
+                
                 # When all players ready -> start IDE phase
-                if len(lobby["ready"]) == len(lobby["players"]) and len(lobby["players"]) >= 2:
+                if len(lobby["ready"]) == len(lobby["players"]) and len(lobby["players"]) >= min_players:
                     lobby["state"] = "ide"
-                    print("Starting IDE phase")
-                    await broadcast(lobby_name, {"type": "ide_start"})
+                    print(f"Starting IDE phase for {lobby_id}")
+                    await broadcast(lobby_id, {"type": "ide_start"})
             
             elif msg_type == "bot_code":
-                lobby["bot_codes"][username] = True
-                print(f"{username} submitted bot code. Total: {len(lobby['bot_codes'])}/{len(lobby['players'])}")
+                lobby["bot_codes"][username] = True  # Just mark submitted
+                print(f"{username} submitted bot. Total: {len(lobby['bot_codes'])}/{len(lobby['players'])}")
                 
-                # When all players submitted code -> start game
+                # When all players submitted -> start game
                 if len(lobby["bot_codes"]) == len(lobby["players"]) and len(lobby["players"]) >= 2:
-                    print("All bots submitted, starting game!")
-                    asyncio.create_task(run_game(lobby_name))
+                    print(f"All bots submitted for {lobby_id}, starting game!")
+                    asyncio.create_task(run_game(lobby_id))
             
             elif msg_type == "move":
-                # Put move in queue for game loop
-                col = data.get("column")
-                if col is not None:
-                    await lobby["pending_moves"][username].put(col)
-                    print(f"Queued move from {username}: column {col}")
+                # Move format depends on game (could be column, coordinate, etc.)
+                move = data.get("move")
+                if move is not None:
+                    await lobby["pending_moves"][username].put(move)
+                    print(f"Queued move from {username}: {move}")
             
             elif msg_type == "restart":
-                print(f"{username} requested restart")
-                lobby["board"] = [[" " for _ in range(7)] for _ in range(6)]
+                print(f"{username} requested restart in {lobby_id}")
+                game_module = get_game_module(lobby["game_type"])
+                lobby["board"] = game_module.create_initial_board()
                 lobby["ready"].clear()
                 lobby["bot_codes"].clear()
                 lobby["current_turn"] = 0
                 lobby["state"] = "lobby"
                 
                 await broadcast(
-                    lobby_name,
+                    lobby_id,
                     {
                         "type": "lobby_state",
                         "players": list(lobby["players"].keys()),
@@ -306,7 +302,7 @@ async def websocket_demo(websocket: WebSocket, username: str):
                 )
     
     except WebSocketDisconnect:
-        print(f"{username} disconnected")
+        print(f"{username} disconnected from {lobby_id}")
     finally:
         # Clean up player
         lobby["players"].pop(username, None)
@@ -318,7 +314,7 @@ async def websocket_demo(websocket: WebSocket, username: str):
         
         # Notify remaining players
         await broadcast(
-            lobby_name,
+            lobby_id,
             {
                 "type": "lobby_state",
                 "players": list(lobby["players"].keys()),
@@ -329,9 +325,30 @@ async def websocket_demo(websocket: WebSocket, username: str):
         # If game was playing, end it
         if lobby["state"] == "playing":
             lobby["state"] = "finished"
-            await broadcast(lobby_name, {
+            await broadcast(lobby_id, {
                 "type": "game_over",
                 "winner": "forfeit",
                 "reason": f"{username} disconnected",
                 "board": lobby["board"]
             })
+        
+        # Clean up empty lobbies
+        if len(lobby["players"]) == 0:
+            print(f"Lobby {lobby_id} is empty, removing...")
+            lobbies.pop(lobby_id, None)
+
+
+@app.get("/")
+async def root():
+    return {
+        "available_games": list(GAMES.keys()),
+        "active_lobbies": len(lobbies),
+        "lobbies": {
+            lobby_id: {
+                "game_type": lobby["game_type"],
+                "players": len(lobby["players"]),
+                "state": lobby["state"]
+            }
+            for lobby_id, lobby in lobbies.items()
+        }
+    }
