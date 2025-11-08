@@ -1,5 +1,5 @@
 // API base URL - replace with your actual API endpoint
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Generic fetch wrapper
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
@@ -98,26 +98,10 @@ export const authAPI = {
   },
 };
 
-// Game API calls
-export const gameAPI = {
-  // Get all games
-  getGames: async () => {
-    // TODO: Replace with actual API call
-    // return apiFetch('/games');
-    return [];
-  },
 
-  // Get game by ID
-  getGame: async (gameId: string) => {
-    // TODO: Replace with actual API call
-    // return apiFetch(`/games/${gameId}`);
-    return null;
-  },
+  export const getGames =  async (setGames: (games: Game[]) => void) => {
 
-  // Join game queue
-  joinQueue: async (gameId: string) => {
-    // TODO: Replace with actual API call
-    // return apiFetch(`/games/${gameId}/queue/join`, { method: 'POST' });
-    return { success: true };
-  },
-};
+    const games = await apiFetch('/api/games');
+    setGames(games);
+  }
+

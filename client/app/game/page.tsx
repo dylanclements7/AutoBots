@@ -3,7 +3,7 @@ import GameCard from "@/components/GameCard/GameCard";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
-
+import { getGames } from "@/lib/api";
 interface Game {
   id: string;
   name: string;
@@ -19,39 +19,9 @@ export default function GameBrowsePage() {
   useEffect(() => {
     // TODO: Replace with actual API call
     // fetch('/api/games').then(res => res.json()).then(setGames)
-    
+    getGames(setGames);
     // Placeholder data
-    const placeholderGames: Game[] = [
-      {
-        id: "1",
-        name: "Maze Runner",
-        description: "Navigate through complex mazes and reach the goal before your opponents",
-        playerCount: "1-4 players"
-      },
-      {
-        id: "2",
-        name: "Tank Wars",
-        description: "Battle with tanks in strategic combat. Destroy enemy tanks and capture territory",
-        playerCount: "2-8 players"
-      },
-      {
-        id: "3",
-        name: "Grid Conquest",
-        description: "Conquer territory on a strategic grid. Outsmart your opponents with clever moves",
-        playerCount: "2-6 players"
-      },
-      {
-        id: "4",
-        name: "Code Duel",
-        description: "Write the best algorithm to defeat your opponent in head-to-head coding battles",
-        playerCount: "2 players"
-      }
-    ];
     
-    setTimeout(() => {
-      setGames(placeholderGames);
-      setLoading(false);
-    }, 300);
   }, []);
 
   if (loading) {
