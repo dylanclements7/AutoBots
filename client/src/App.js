@@ -267,7 +267,7 @@ export default function App() {
         />
         <button
           onClick={() => {
-            ws.send(JSON.stringify({ type: "bot_code", code }));
+            ws.send(JSON.stringify({ type: "bot_code"}));
             setPhase("game");
             setOutput("Bot submitted! Waiting for others...");
           }}

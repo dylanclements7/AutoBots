@@ -273,7 +273,7 @@ async def websocket_demo(websocket: WebSocket, username: str):
                     await broadcast(lobby_name, {"type": "ide_start"})
             
             elif msg_type == "bot_code":
-                lobby["bot_codes"][username] = data["code"]
+                lobby["bot_codes"][username] = True
                 print(f"{username} submitted bot code. Total: {len(lobby['bot_codes'])}/{len(lobby['players'])}")
                 
                 # When all players submitted code -> start game
