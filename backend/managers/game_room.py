@@ -3,7 +3,8 @@ from typing import Dict
 from fastapi import WebSocket
 
 class GameRoom:
-    def __init__(self, room_id: str):
+    def __init__(self, game_type: str, room_id: str):
+        self.game_type = game_type
         self.room_id = room_id
         self.clients: Dict[str, WebSocket] = {}
         self.game_running = False
