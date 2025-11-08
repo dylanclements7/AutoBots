@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Login</title>
+	<style>
+		body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 2rem; max-width: 420px; margin: auto; }
+		label { display:block; margin-top:1rem; }
+		input { width:100%; padding:0.5rem; margin-top:0.25rem; box-sizing:border-box; }
+		button { margin-top:1rem; padding:0.5rem 1rem; }
+		.hidden { display:none; }
+		.msg { margin-top:0.5rem; color:#b00; }
+		.ok { color: #080; }
+	</style>
+</head>
+<body>
+	<h1>Sign in</h1>
+
+	<form id="loginForm" autocomplete="off">
+		<label for="username">Username
+			<input id="username" name="username" type="text" required aria-describedby="userHelp" />
+		</label>
+
+		<div id="usernameControls">
+			<button type="button" id="checkBtn">Check username</button>
+			<div id="userHelp" class="msg" aria-live="polite"></div>
+		</div>
+
+		<div id="passwordBlock" class="hidden" aria-hidden="true">
+			<label for="password">Password
+				<input id="password" name="password" type="password" required />
+			</label>
+			<button type="submit" id="loginBtn">Log in</button>
+			<div id="loginMsg" class="msg" aria-live="polite"></div>
+		</div>
+	</form>
+
+	<script>
+		// Endpoints (adjust to your backend)
+		const CHECK_URL = '/api/check-username';
+		const LOGIN_URL = '/api/login';
+
+		const usernameInput = document.getElementById('username');
+		const checkBtn = document.getElementById('checkBtn');
+		const userHelp = document.getElementById('userHelp');
+		const passwordBlock = document.getElementById('passwordBlock');
+		const passwordInput = document.getElementById('password');
+		const loginForm = document.getElementById('loginForm');
+		const loginMsg = document.getElementById('loginMsg');
+
+		async function checkUsername() {
+			userHelp.textContent = '';
+			loginMsg.textContent = '';
+			const username = usernameInput.value.trim();
+			if (!username) {
+				userHelp.textContent = 'Enter a username.';
+				return;
+			}
+
+			checkBtn.disabled = true;
+			userHelp.textContent = 'Checking...';
+
+			try {
+				const res = await fetch(CHECK_URL, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					credentials: 'same-origin',
+					body: JSON.stringify({ username })
+				});
+
+				if (!res.ok) {
+					throw new Error('Server error');
+				}
+
+				const data = await res.json();
+				if (data.exists) {
+					userHelp.textContent = 'Username found. Please enter your password.';
+					userHelp.className = 'msg ok';
+					showPasswordField();
+				} else {
+					userHelp.textContent = 'Username not found.';
+					userHelp.className = 'msg';
+					hidePasswordField();
+				}
+			} catch (err) {
+				userHelp.textContent = 'Unable to verify username.';
+				userHelp.className = 'msg';
+				hidePasswordField();
+			} finally {
+				checkBtn.disabled = false;
+			}
+		}
+
+		function showPasswordField() {
+			passwordBlock.classList.remove('hidden');
+			passwordBlock.setAttribute('aria-hidden', 'false');
+			passwordInput.focus();
+		}
+
+		function hidePasswordField() {
+			passwordBlock.classList.add('hidden');
+			passwordBlock.setAttribute('aria-hidden', 'true');
+			passwordInput.value = '';
+		}
+
+		async function sha256Hex(message) {
+			const enc = new TextEncoder();
+			const data = enc.encode(message);
+			const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+			const hashArray = Array.from(new Uint8Array(hashBuffer));
+			return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+		}
+
+		async function submitLogin(event) {
+			event.preventDefault();
+			loginMsg.textContent = '';
+
+			const username = usernameInput.value.trim();
+			const password = passwordInput.value;
+
+			if (!username) {
+				loginMsg.textContent = 'Username is required.';
+				return;
+			}
+			if (!password) {
+				loginMsg.textContent = 'Password is required.';
+				return;
+			}
+
+			const passwordHash = await sha256Hex(password);
+
+			// Clear password immediately to reduce exposure in memory
+			passwordInput.value = '';
+
+			loginMsg.textContent = 'Signing in...';
+			try {
+				const res = await fetch(LOGIN_URL, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					credentials: 'same-origin',
+					body: JSON.stringify({ username, passwordHash })
+				});
+
+				if (!res.ok) {
+					if (res.status === 401) {
+						loginMsg.textContent = 'Invalid credentials.';
+					} else {
+						loginMsg.textContent = 'Login failed.';
+					}
+					return;
+				}
+
+				const data = await res.json();
+				if (data.success) {
+					loginMsg.textContent = 'Login successful.';
+					loginMsg.className = 'msg ok';
+					// Adjust post-login behavior as needed; for example:
+					// window.location.href = data.redirect || '/';
+				} else {
+					loginMsg.textContent = data.message || 'Login failed.';
+					loginMsg.className = 'msg';
+				}
+			} catch (err) {
+				loginMsg.textContent = 'Unable to reach server.';
+				loginMsg.className = 'msg';
+			}
+		}
+
+		checkBtn.addEventListener('click', checkUsername);
+
+		// Allow pressing Enter in username field to check username
+		usernameInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') {
+				e.preventDefault();
+				checkUsername();
+			}
+		});
+
+		loginForm.addEventListener('submit', submitLogin);
+	</script>
+</body>
+</html>

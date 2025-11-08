@@ -1,58 +1,63 @@
-# connect4.py
+from typing import Optional
 
-def check_win(board):
-    """
-    Given a Connect 4 board as a list of lists with:
-        0 = empty
-        1 = Player 1
-        2 = Player 2
-    Return:
-        1 if Player 1 wins
-        2 if Player 2 wins
-        0 if no win
-    """
-    rows = len(board)
-    cols = len(board[0]) if rows > 0 else 0
+# Initial game state
+starting_game_state = [[" " for _ in range(7)] for _ in range(6)]
+
+# Player symbols
+player_symbols = ['X', 'O']
+
+
+def is_valid_move(board, col: int) -> bool:
+    """Check if a column has space"""
+    if col < 0 or col >= 7:
+        return False
+    return board[0][col] == " "
+
+
+def make_move(board, col: int, symbol: str) -> bool:
+    """Make a move and return success"""
+    if not is_valid_move(board, col):
+        return False
     
-    # Directions to check: (row_step, col_step)
-    directions = [
-        (0, 1),   # Horizontal →
-        (1, 0),   # Vertical ↓
-        (1, 1),   # Diagonal down-right ↘
-        (1, -1)   # Diagonal down-left ↙
-    ]
+    # Drop piece
+    for row in reversed(board):
+        if row[col] == " ":
+            row[col] = symbol
+            break
     
+    return True
+
+
+def check_winner(board) -> Optional[str]:
+    """Check for a winner in Connect 4. Returns 'X', 'O', 'draw', or None"""
+    rows, cols = 6, 7
+    
+    # Check horizontal
     for r in range(rows):
+        for c in range(cols - 3):
+            if board[r][c] != " " and all(board[r][c+i] == board[r][c] for i in range(4)):
+                return board[r][c]
+    
+    # Check vertical
+    for r in range(rows - 3):
         for c in range(cols):
-            player = board[r][c]
-            if player == 0:
-                continue  # Only check from a player's piece
-            
-            for dr, dc in directions:
-                count = 0
-                for i in range(4):  # Check 4 spots in this direction
-                    nr, nc = r + dr*i, c + dc*i
-                    if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc] == player:
-                        count += 1
-                    else:
-                        break
-                
-                if count == 4:
-                    return player  # 1 or 2
+            if board[r][c] != " " and all(board[r+i][c] == board[r][c] for i in range(4)):
+                return board[r][c]
     
-    return 0  # No winner
-
-
-if __name__ == "__main__":
-    # Example board for quick test
-    sample_board = [
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 2, 0, 0, 0],
-        [0, 0, 1, 2, 0, 0, 0],
-        [0, 0, 1, 1, 0, 0, 0],
-        [0, 1, 1, 1, 1, 1, 1],
-        [2, 2, 2, 1, 0, 0, 0],
-    ]
+    # Check diagonal (down-right)
+    for r in range(rows - 3):
+        for c in range(cols - 3):
+            if board[r][c] != " " and all(board[r+i][c+i] == board[r][c] for i in range(4)):
+                return board[r][c]
     
-    winner = check_win(sample_board)
-    print("Winner:", winner)  # Expected: Winner: 2 (horizontal bottom row)
+    # Check diagonal (down-left)
+    for r in range(rows - 3):
+        for c in range(3, cols):
+            if board[r][c] != " " and all(board[r+i][c-i] == board[r][c] for i in range(4)):
+                return board[r][c]
+    
+    # Check for draw
+    if all(board[0][c] != " " for c in range(cols)):
+        return "draw"
+    
+    return None
