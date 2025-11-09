@@ -5,6 +5,15 @@ import importlib
 import copy
 import requests
 import json
+import ast
+from pymongo import MongoClient
+
+# MongoDB setup
+client = MongoClient("mongodb://localhost:27017/")
+db = client["clarkathon2025"]
+game_data = db["games"]
+
+
 
 class GameRoom:
     def __init__(self, game_type: str, room_id: str, players: Dict[str, WebSocket]):
@@ -17,21 +26,26 @@ class GameRoom:
         self.room_id = room_id
         self.clients = players
         self.game_running = False
+        self.game = game_data.find_one({ "name": f"{game_type}" })
+        # assert self.game
+        # print(self.game)
+        # self.code = self.game["code"]
+
         
         # Load game module dynamically
-        try:
-            self.game_module = importlib.import_module(f"game_files.{game_type}")
-        except Exception as e:
-            print(f"ERROR: Could not load game module 'game_files.{game_type}': {e}")
-            raise
+        # try:
+            # self.game_module = importlib.import_module(f"game_files.{game_type}")
+        # except Exception as e:
+            # print(f"ERROR: Could not load game module 'game_files.{game_type}': {e}")
+            # raise
         
-        # Initialize game state from module
-        starting_state = self.game_module.starting_game_state
-        if hasattr(starting_state, 'copy'):
-            self.game_state = starting_state.copy()
-        else:
-            # Deep copy for nested lists
-            self.game_state = copy.deepcopy(starting_state)
+        # # Initialize game state from module
+        # starting_state = self.game_module.starting_game_state
+        # if hasattr(starting_state, 'copy'):
+            # self.game_state = starting_state.copy()
+        # else:
+            # # Deep copy for nested lists
+            # self.game_state = copy.deepcopy(starting_state)
         
         # Player management
         self.turn_order = list(players.keys())
@@ -52,7 +66,12 @@ class GameRoom:
         
     def _assign_symbols(self):
         """Assign symbols to players based on game requirements"""
-        symbols = getattr(self.game_module, 'player_symbols', ['X', 'O'])
+        # if self.game:
+            # symbols = self.game["symbols"]
+        # else:
+            # print("self.game = None")
+        # symbols = getattr(self.game_module, 'player_symbols', ['X', 'O'])
+        symbols = ['X', 'O']
         for i, player_id in enumerate(self.turn_order):
             self.player_symbols[player_id] = symbols[i % len(symbols)]
     
@@ -98,7 +117,13 @@ class GameRoom:
         self.game_running = True
         
         # Reset game state - FIXED: use deep copy
-        self.game_state = copy.deepcopy(self.game_module.starting_game_state)
+        # self.game_state = copy.deepcopy(self.game_module.starting_game_state)
+        # self.game_state = [[' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ']]
+        # assert self.game
+        # print(self.game)
+        # print(f"state type: {game["state"].type}")
+        self.game_state = self.game["state"]
+        # self.game_state = [[" " for _ in range(7)] for _ in range(6)]
         self.current_turn = 0
         
         # Send game start with player assignments
@@ -145,7 +170,7 @@ class GameRoom:
 
                 if error:
                     # Handle invalid move
-                    await self._handle_invalid_move(current_player, "Invalid move")
+                    await self._end_game_invalid_move(current_player)
                     break
 
                 self.game_state = new_board
