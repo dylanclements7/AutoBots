@@ -63,29 +63,25 @@ class Lobby:
                 pass
 
     async def try_start_tournament(self, game_type: str):
-        """Check if we have enough ready players to start a tournament"""
-        ready = self.players[game_type]
+        """Check if we have enough players to start a tournament"""
+        queue = self.queues.get(game_type, {})
+        num_players = len(queue)
+        
+        print(f"Checking tournament start for {game_type}: {num_players} players in queue")
         
         # Need a power of 2 (2, 4, 8, 16, etc.)
-        if len(ready) < 2:
+        if num_players < 2:
             return
         
         # Check if it's a power of 2
-        if not self._is_power_of_2(len(ready)):
+        if not self._is_power_of_2(num_players):
             return
         
-        # All ready players must still be in the queue
-        valid_ready = [p for p in ready if p in self.queues[game_type]]
-        if len(valid_ready) != len(ready):
-            # Clean up invalid ready players
-            self.ready_players[game_type] = set(valid_ready)
-            return
-        
-        print(f"Starting tournament for {game_type} with {len(ready)} players")
+        print(f"Starting tournament for {game_type} with {num_players} players")
         
         # Extract players from queue
         tournament_players = {}
-        for player_id in list(ready):
+        for player_id in list(queue.keys()):
             tournament_players[player_id] = self.queues[game_type].pop(player_id)
             self.players[game_type].remove(player_id)
         
@@ -179,18 +175,18 @@ class Tournament:
 
     async def run_round(self) -> List[str]:
         """Run a single round of matches and return winners"""
-        
+        print('ri')
         players_copy = self.active_players.copy()
         
         player1 = players_copy.pop(0)
         player2 = players_copy.pop(0)
         
-        print(f"Round {self.current_round} matches: {matches}")
+        
         
         # Create game rooms for all matches
         game_tasks = []
         
-        room_id = f"{self.game_type}_R{self.current_round}_M{match_idx+1}"
+        room_id = f"{self.game_type}_R{self.current_round}"
         
         match_players = {
             player1: self.players[player1],

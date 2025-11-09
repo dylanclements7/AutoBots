@@ -49,13 +49,13 @@ async function runAllTestCases(code: string, pyodide: any, testCases: any[], set
     setTestCases(updatedTestCases);
 }
 
-export default function CodeEditor({time, parameters}: {time: number, parameters: any}) {
+export default function CodeEditor({time, parameters, code, setCode}: {time: number, parameters: any, code: string, setCode: (code: string) => void}) {
   
   const [result, setResult] = useState("");
   const [pythonLoading, setPythonLoading] = useState(true);
   const pyodideRef = useRef(null);
-  const {code, setCode} = useWebSocket();
   const { socket, roomId, sendMessage } = useWebSocket();
+  const [waiting, setWaiting] = useState(false);
   const [testCases, setTestCases] = useState([{name: 'case 1', vals:[1,2], output: ""},{name: 'case 2', vals:[1,2], output: ""}]);
     const [activeTestCase, setActiveTestCase] = useState(0);
     
@@ -80,13 +80,15 @@ export default function CodeEditor({time, parameters}: {time: number, parameters
       console.error("No roomId available");
       return;
     }
-    sendMessage({ type: "bot_code", code: value, roomId: roomId });
+    setWaiting(true);
+    sendMessage({ type: "bot_code", code: code, roomId: roomId });
   }
    
 
 
   return (
-    <div className="h-[calc(100%-10px)]">
+    <>
+    {!waiting && <div className="h-[calc(100%-10px)]">
         <div className={styles.header}>
             <div>Title Title</div>
             <div>
@@ -163,7 +165,8 @@ export default function CodeEditor({time, parameters}: {time: number, parameters
         </ResizablePanelGroup>
       </ResizablePanel>
     </ResizablePanelGroup>
-    </div>
+    </div>}
+    {waiting && <div>Waiting for match to start...</div>} </>
 
     
   );

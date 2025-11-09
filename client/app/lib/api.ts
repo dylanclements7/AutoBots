@@ -29,21 +29,18 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 
-
-
-  export const getGames =  async (setGames: (games) => void, setLoading) => {
+  export const getGames =  async (setGames: (games: Game[]) => void, setLoading: (loading: boolean) => void) => {
 
     const games = await apiFetch('/api/games');
-    console.log(games);
+    console.log('games', games)
     setGames(games);
     setLoading(false)
+    
   }
 
-  export const getQueue =  async (gameName: string, setQueue: (players) => void, setLoading) => {
-
+export const getQueue = async (gameName: string, setQueue: (queue: string[]) => void, setLoading: (loading: boolean) => void) => {
     const queue = await apiFetch(`/api/lobby/${gameName}/status`);
     console.log('queue', queue);
     setQueue(queue?.players)
     setLoading(false)
-  }
-
+}
