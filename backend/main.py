@@ -70,6 +70,15 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
         await websocket.close()
         return
     
+    success = lobby.join_lobby(game_type, username, websocket)
+    if not success:
+        await websocket.send_json({
+            "type": "error",
+            "message": "Username already taken"
+        })
+        await websocket.close()
+        return
+    
     
     # Now broadcast the updated lobby state
     await lobby.broadcast_lobby_state(game_type)

@@ -3,11 +3,13 @@ from typing import Dict, Optional
 from fastapi import WebSocket
 import importlib
 import copy
+import requests
+import json
 
 class GameRoom:
     def __init__(self, game_type: str, room_id: str, players: Dict[str, WebSocket]):
         """
-        game_type: the type of game (connect_four, tic_tac_toe, etc.)
+        game_type: the type of game (connect4, tictactoe, etc.)
         room_id: unique room identifier
         players: dict of {player_id: websocket} assigned to this room
         """
@@ -135,23 +137,25 @@ class GameRoom:
                 
                 print(f"{current_player} played move: {move}")
                 
-                filepath = "/game_files"+self.game_type+".py"
-
+                filepath = "game_files/" + self.game_type + ".py"  # Fixed path
                 with open(filepath, 'r') as f:
                     code = f.read()
 
-                error, self.game_state = makeMove(code, self.game_state, move, symbol)
+                error, new_board = makeMove(code, self.game_state, move, symbol)
 
-                
+                if error:
+                    # Handle invalid move
+                    await self._handle_invalid_move(current_player, "Invalid move")
+                    break
 
-                # Broadcast board update
+                self.game_state = new_board
+
                 await self.broadcast({
                     "type": "board_update",
                     "gameState": self.game_state,
                     "lastMove": {"player": current_player, "move": move}
                 })
-                
-                # Check for winner
+
                 winner_result = checkWinner(code, self.game_state)
                 if winner_result:
                     await self._end_game_winner(winner_result)
@@ -259,32 +263,61 @@ class GameRoom:
             self.game_running = False
 
 def makeMove(code: str, board, move, symbol):
+    """Execute make_move function via Piston API"""
+    # Convert board to proper JSON string
+    board_json = json.dumps(board)
+
+    source = code + f"\nresult = make_move({board_json}, {move}, '{symbol}')\nprint(result)"
+
     url = "https://emkc.org/api/v2/piston/execute"
     payload = {
-        "language": "python3",
+        "language": "python",
         "version": "3.10.0",
-        "source": code + "\n"+ f"makeMove({board}, {move}, {symbol})"  # directly pass code as string
+        "files": [{
+            "content": source
+        }]
     }
 
     response = requests.post(url, json=payload)
     data = response.json()
 
-    output = data.get("run", {}).get("output", "")
-    return output.strip()
+    output = data.get("run", {}).get("output", "").strip()
+
+    try:
+        result = eval(output)  # Safely parse the tuple
+        return result  # Returns (error, board)
+    except:
+        print(f"Error parsing output: {output}")
+        return (True, board)  # Return error if parsing fails
+
 
 def checkWinner(code: str, board):
+    """Execute check_winner function via Piston API"""
+    # Convert board to proper JSON string
+    board_json = json.dumps(board)
+
+    source = code + f"\nresult = check_winner({board_json})\nprint(result)"
+
     url = "https://emkc.org/api/v2/piston/execute"
     payload = {
-        "language": "python3",
+        "language": "python",
         "version": "3.10.0",
-        "source": code + "\n"+ f"makeMove({board})"  # directly pass code as string
+        "files": [{
+            "content": source
+        }]
     }
 
     response = requests.post(url, json=payload)
     data = response.json()
 
-    output = data.get("run", {}).get("output", "")
-    return output.strip()
+    output = data.get("run", {}).get("output", "").strip()
+
+    if output in ["'X'", "'O'", "'draw'"]:
+        return output.strip("'")
+    elif output == "None":
+        return None
+    else:
+        return output if output else None
 
 # import asyncio
 # from typing import Dict
