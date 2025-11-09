@@ -32,10 +32,11 @@ export default function QueueDrawer({
       <DrawerTrigger asChild>{children}</DrawerTrigger>
       <DrawerContent className="data-[vaul-drawer-direction=right]:w-[600px] data-[vaul-drawer-direction=right]:max-w-[90vw] data-[vaul-drawer-direction=right]:sm:max-w-[600px]">
         <DrawerHeader>
-          <DrawerTitle>{game.name} Queue</DrawerTitle>
-          <DrawerDescription>
-            Join the matchmaking queue for {game}
-          </DrawerDescription>
+        <DrawerTitle>{game.title} Queue</DrawerTitle>
+        <DrawerDescription>
+          Join the matchmaking queue for {game.title}
+        </DrawerDescription>
+        <MatchmakingQueue name={game.title} gameId={game._id} gameData={gameData} />
         </DrawerHeader>
         <div
           className={

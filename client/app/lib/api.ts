@@ -28,15 +28,40 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
   }
 }
 
+interface GameSummary {
+  title: string;
+  difficulty: string;
+  game_summary: string;
+  objective: string;
+  player_symbols: string[];
+}
 
-  export const getGames =  async (setGames: (games: Game[]) => void, setLoading: (loading: boolean) => void) => {
+interface ApiResponse {
+  games: GameSummary[];
+  gameData: any[];
+}
 
-    const games = await apiFetch('/api/games');
-    console.log('games', games)
-    setGames(games);
-    setLoading(false)
-    
+export const getGames = async (
+  setData: (data: ApiResponse) => void,
+  setLoading: (loading: boolean) => void
+) => {
+  try {
+    const response = await apiFetch('/api/games');
+    console.log('API response:', response);
+
+    // Ensure we have both arrays
+    const data: ApiResponse = {
+      games: response.games || [],
+      gameData: response.gameData || []
+    };
+
+    setData(data);
+  } catch (err) {
+    console.error('Error fetching games:', err);
+  } finally {
+    setLoading(false);
   }
+};
 
 export const getQueue = async (gameName: string, setQueue: (queue: string[]) => void, setLoading: (loading: boolean) => void) => {
     const queue = await apiFetch(`/api/lobby/${gameName}/status`);
