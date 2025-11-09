@@ -1,7 +1,8 @@
 import styles from "./page.module.css";
 import QueueDrawer from "../QueueDrawer/drawer";
 
-export default function GameCard({game}: {game: any}) {
+export default function GameCard({game}: {game: any}) 
+ {
     return (
         <QueueDrawer game={game}>
             <div className={styles.gameCard}>

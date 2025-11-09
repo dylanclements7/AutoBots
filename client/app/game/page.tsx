@@ -4,12 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
 import { getGames } from "@/app/lib/api";
-interface Game {
-  games: string[]
-}
+
 
 export default function GameBrowsePage() {
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,7 +36,7 @@ export default function GameBrowsePage() {
        
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games && games?.games.map((game) => (
+          {games.games.map((game) => (
             // <Link
             //   key={game.id}
             //   href={`/game/${game.id}`}
