@@ -87,18 +87,59 @@ function GameBoard({
   }
 
   return (
-    <iframe
-      ref={iframeRef}
-      src={boardUrl}
-      style={{
-        width: "100%",
-        height: "600px",
-        border: "none",
-        borderRadius: "10px",
-      }}
-      sandbox="allow-scripts"
-      title="Game Board"
-    />
+    <div style={{ position: "relative", width: "100%", height: "600px" }}>
+      <iframe
+        ref={iframeRef}
+        src={boardUrl}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          borderRadius: "10px",
+        }}
+        sandbox="allow-scripts"
+        title="Game Board"
+      />
+      {gameMessage?.type === "game_over" && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: "10px",
+            zIndex: 10,
+          }}
+        >
+          <div
+            style={{
+              color: "white",
+              fontSize: "48px",
+              fontWeight: "bold",
+              marginBottom: "16px",
+              textAlign: "center",
+            }}
+          >
+            {gameMessage.winner} Wins!
+          </div>
+          <div
+            style={{
+              color: "white",
+              fontSize: "24px",
+              textAlign: "center",
+            }}
+          >
+            {gameMessage.reason}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
