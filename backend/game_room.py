@@ -5,14 +5,6 @@ import importlib
 import copy
 import requests
 import json
-from pymongo import MongoClient
-
-
-# MongoDB setup
-client = MongoClient("mongodb://localhost:27017/")
-db = client["clarkathon2025"]
-game_data = db["games"]
-
 
 class GameRoom:
     def __init__(self, game_type: str, room_id: str, players: Dict[str, WebSocket]):
@@ -25,10 +17,21 @@ class GameRoom:
         self.room_id = room_id
         self.clients = players
         self.game_running = False
-        self.game = game_data.find_one({ "name": f"{game_type}" })
-        assert self.game
-        self.code = self.game["code"]
         
+        # Load game module dynamically
+        try:
+            self.game_module = importlib.import_module(f"game_files.{game_type}")
+        except Exception as e:
+            print(f"ERROR: Could not load game module 'game_files.{game_type}': {e}")
+            raise
+        
+        # Initialize game state from module
+        starting_state = self.game_module.starting_game_state
+        if hasattr(starting_state, 'copy'):
+            self.game_state = starting_state.copy()
+        else:
+            # Deep copy for nested lists
+            self.game_state = copy.deepcopy(starting_state)
         
         # Player management
         self.turn_order = list(players.keys())
@@ -49,8 +52,7 @@ class GameRoom:
         
     def _assign_symbols(self):
         """Assign symbols to players based on game requirements"""
-        assert self.game
-        symbols = self.game["symbols"]
+        symbols = getattr(self.game_module, 'player_symbols', ['X', 'O'])
         for i, player_id in enumerate(self.turn_order):
             self.player_symbols[player_id] = symbols[i % len(symbols)]
     
@@ -96,8 +98,7 @@ class GameRoom:
         self.game_running = True
         
         # Reset game state - FIXED: use deep copy
-        assert self.game
-        self.game_state = self.game["state"]
+        self.game_state = copy.deepcopy(self.game_module.starting_game_state)
         self.current_turn = 0
         
         # Send game start with player assignments
@@ -136,11 +137,15 @@ class GameRoom:
                 
                 print(f"{current_player} played move: {move}")
                 
-                error, new_board = makeMove(self.code, self.game_state, move, symbol)
+                filepath = "game_files/" + self.game_type + ".py"  # Fixed path
+                with open(filepath, 'r') as f:
+                    code = f.read()
+
+                error, new_board = makeMove(code, self.game_state, move, symbol)
 
                 if error:
                     # Handle invalid move
-                    await self._end_game_invalid_move(current_player)
+                    await self._handle_invalid_move(current_player, "Invalid move")
                     break
 
                 self.game_state = new_board
@@ -155,7 +160,7 @@ class GameRoom:
                 #self.game_type call update board figure out that
                 #
                 #
-                winner_result = checkWinner(self.code, self.game_state)
+                winner_result = checkWinner(code, self.game_state)
                 if winner_result:
                     await self._end_game_winner(winner_result)
                     break
@@ -318,3 +323,101 @@ def checkWinner(code: str, board):
     else:
         return output if output else None
 
+# import asyncio
+# from typing import Dict
+# from fastapi import WebSocket
+
+# class GameRoom:
+#     def __init__(self, game_type: str, room_id: str):
+#         self.game_type = game_type
+#         self.room_id = room_id
+#         self.clients: Dict[str, WebSocket] = {}
+#         self.game_running = False
+
+#     async def connect(self, player_id: str, websocket: WebSocket):
+#         self.clients[player_id] = websocket
+#         await self.broadcast({"type": "PLAYER_JOINED", "playerId": player_id})
+
+#         if len(self.clients) == 2 and not self.game_running:
+#             asyncio.create_task(self.run_game())
+
+#     async def disconnect(self, player_id: str):
+#         del self.clients[player_id]
+#         await self.broadcast({"type": "PLAYER_LEFT", "playerId": player_id})
+
+#     async def broadcast(self, message: dict):
+#         for ws in list(self.clients.values()):
+#             await ws.send_json(message)
+
+#     async def send_to(self, player_id: str, message: dict):
+#         await self.clients[player_id].send_json(message)
+
+#     async def handle_message(self, player_id: str, message: dict):
+#         # for example: chat messages or ready signals
+#         await self.broadcast({"from": player_id, **message})
+
+#     async def run_game(self):
+#         self.game_running = True
+#         await self.broadcast({"type": "GAME_START"})
+
+#         players = list(self.clients.keys())
+#         current = 0
+
+#         for turn in range(10):  # replace with real game logic
+#             await self.broadcast({
+#                 "type": "TURN",
+#                 "turn": turn,
+#                 "playerId": players[current]
+#             })
+#             await asyncio.sleep(1)
+#             current = 1 - current
+
+#         await self.broadcast({"type": "GAME_END", "result": "DEMO"})
+#         self.game_running = False
+
+
+
+
+# import asyncio
+# from typing import Dict
+# from fastapi import WebSocket
+# from game_files import *
+
+# class GameRoom:
+#     def __init__(self, game_type: str, room_id: str, players: Dict[str, WebSocket]):
+#         """
+#         game_type: the type of game (connect4, tictactoe, etc.)
+#         room_id: unique room identifier
+#         players: dict of {player_id: websocket} assigned to this room
+#         """
+#         self.game_type = game_type
+#         self.room_id = room_id
+#         self.clients = players
+#         self.game_running = False
+#         self.game_state = game_type.starting_game_state.copy()
+#         self.turn_order = []
+#         self.current_turn = 0
+
+#     async def broadcast(self, message: dict):
+#         for ws in list(self.clients.values()):
+#             await ws.send_json(message)
+
+#     async def run_game(self):
+#         self.game_running = True
+#         await self.broadcast({"type": "GAME_START", "roomId": self.room_id})
+
+#         players = list(self.clients.keys())
+#         current = 0
+
+#         # Example: simple demo game loop
+#         for turn in range(10):
+#             await self.broadcast({
+#                 "type": "TURN",
+#                 "turn": turn,
+#                 "playerId": players[current]
+#             })
+#             await asyncio.sleep(1)
+#             current = 1 - current
+
+#         await self.broadcast({"type": "GAME_END", "roomId": self.room_id, "result": "DEMO"})
+#         self.game_running = False
