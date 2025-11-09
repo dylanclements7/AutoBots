@@ -19,14 +19,14 @@ def is_valid_move(board, pos: int) -> bool:
     return board[row][col] == " "
 
 
-def make_move(board, pos: int, symbol: str) -> bool:
+def make_move(board, pos: int, symbol: str):
     """Place the symbol if the move is valid. Return True if move made."""
     if not is_valid_move(board, pos):
-        return False
+        return (True, board)
     
     row, col = divmod(pos, 3)
     board[row][col] = symbol
-    return True
+    return (False, board)
 
 
 def check_winner(board) -> Optional[str]:
