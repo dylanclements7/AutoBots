@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getQueue } from "@/app/lib/api";
-import  LobbySocket  from "@/app/lib/websockets";
+import { useWebSocket } from "@/app/lib/websockets";
 interface Player {
   id: string;
   name: string;
@@ -14,26 +14,36 @@ interface Player {
 export default function MatchmakingQueue({gameId, name}: {gameId: string, name:string}) {
   const params = useParams();
   
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInQueue, setIsInQueue] = useState(false);
-  const [socket, setSocket] = useState(false)
-  useEffect(() => {
-    
-    const interval = setInterval(() => {
-      getQueue(name, setPlayers, setLoading);
-    }, 500); // every 500ms
+  const username = localStorage.getItem('user') || 'user1';
+  const { connect, disconnect, lobbyState, isConnected } = useWebSocket();
   
-    
-    return () => clearInterval(interval);
-  }, [gameId, name]);
-  const username = localStorage.getItem('user')
+  useEffect(() => {
+    // Load initial queue state on mount
+    getQueue(name, (queueData: any) => {
+      if (queueData && queueData.players) {
+        setPlayers(queueData.players);
+      }
+    }, setLoading);
+  }, [name]);
 
+  // Update players when lobby state changes
+  useEffect(() => {
+    if (lobbyState) {
+      console.log('Lobby update:', lobbyState);
+      setPlayers(lobbyState.players);
+    }
+  }, [lobbyState]);
+
+  const handleJoinQueue = () => {
+    connect(name, username);
+    setIsInQueue(true);
+  };
 
   const handleLeaveQueue = () => {
-    // TODO: Replace with actual API call
-    // fetch(`/api/games/${gameId}/queue/leave`, { method: 'POST' })
-
+    disconnect();
     setIsInQueue(false);
   };
 
@@ -46,7 +56,7 @@ export default function MatchmakingQueue({gameId, name}: {gameId: string, name:s
   }
 
 
-  const totalPlayers = players.length + (isInQueue ? 1 : 0);
+  const totalPlayers = players.length;
 
   return (
     <div className="min-h-screen bg-background text-foreground p-8">
@@ -62,77 +72,49 @@ export default function MatchmakingQueue({gameId, name}: {gameId: string, name:s
         </div>
 
         <div className="mb-6 flex gap-4">
-        
-          {socket && <LobbySocket gameType={name} username={username}/>}
           {!isInQueue ? (
             <button
-              onClick={() => setSocket(true)}
+              onClick={handleJoinQueue}
               className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
             >
-              
               Join Queue
             </button>
           ) : (
-            <>
-              <button
-                
-                className={
-                  isReady
-                    ? "flex-1 bg-muted text-muted-foreground px-6 py-3 rounded-lg hover:bg-muted/80 transition-colors font-semibold"
-                    : "flex-1 bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
-                }
-              >
-                {isReady ? "Not Ready" : "Ready Up"}
-              </button>
-              <button
-                onClick={handleLeaveQueue}
-                className="px-6 py-3 rounded-lg border border-border hover:bg-muted transition-colors font-semibold"
-              >
-                Leave Queue
-              </button>
-            </>
+            <button
+              onClick={handleLeaveQueue}
+              className="px-6 py-3 rounded-lg border border-border hover:bg-muted transition-colors font-semibold"
+            >
+              Leave Queue
+            </button>
           )}
         </div>
 
         <div className="bg-card border border-border rounded-lg p-6">
           <h2 className="text-2xl font-semibold mb-4">Players in Queue</h2>
           <div className="space-y-3">
-            {isInQueue && (
-              <div className="flex items-center justify-between bg-primary/10 border border-primary rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold">
-                    You
-                  </div>
-                  <div>
-                    <span className="font-medium">You</span>
-                    <span className="text-sm text-muted-foreground ml-2">Rating: 1500</span>
-                  </div>
-                </div>
-                
-              </div>
-            )}
-            {players.map((player) => (
-              <div
-                key={player.id}
-                className="flex items-center justify-between bg-muted rounded-lg p-4"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center font-bold">
-                    {player.name.charAt(0)}
-                  </div>
-                  <div>
-                    <span className="font-medium">{player.name}</span>
-                    {player.rating && (
-                      <span className="text-sm text-muted-foreground ml-2">
-                        Rating: {player.rating}
-                      </span>
-                    )}
+            {players.map((playerName) => {
+              const isCurrentUser = playerName === username;
+              return (
+                <div
+                  key={playerName}
+                  className={`flex items-center justify-between rounded-lg p-4 ${
+                    isCurrentUser ? 'bg-primary/10 border border-primary' : 'bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                      isCurrentUser ? 'bg-primary text-primary-foreground' : 'bg-card border border-border'
+                    }`}>
+                      {playerName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="font-medium">{isCurrentUser ? 'You' : playerName}</span>
+                    </div>
                   </div>
                 </div>
-                
-              </div>
-            ))}
-            {players.length === 0 && !isInQueue && (
+              );
+            })}
+            {players.length === 0 && (
               <div className="text-center text-muted-foreground py-8">
                 No players in queue. Be the first to join!
               </div>

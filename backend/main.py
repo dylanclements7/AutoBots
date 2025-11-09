@@ -70,7 +70,25 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
         await websocket.close()
         return
     
-    
+    # Join lobby (not async anymore)
+    success = lobby.join_lobby(game_type, username, websocket)
+    if not success:
+        await websocket.send_json({
+            "type": "error",
+            "message": "Username already taken"
+        })
+        await websocket.close()
+        return
+    #check if a tournament can start
+    tournament = await lobby.try_start_tournament(game_type)
+    if tournament:
+        await websocket.send_json({
+            "type": "tournament_started",
+            "tournament": tournament
+        })
+        await websocket.close()
+        return
+
     # Now broadcast the updated lobby state
     await lobby.broadcast_lobby_state(game_type)
     
@@ -154,14 +172,13 @@ async def get_lobby_status(game_type: str):
         raise HTTPException(status_code=404, detail="Game type not found")
     
     queue = lobby.queues.get(game_type, {})
-    ready = lobby.ready_players.get(game_type, set())
+    
     
     return {
         "game_type": game_type,
         "total_players": len(queue),
-        "ready_players": len(ready),
         "players": list(queue.keys()),
-        "ready_list": list(ready)
+        
     }
 
 

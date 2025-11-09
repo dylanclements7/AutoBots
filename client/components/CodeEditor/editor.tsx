@@ -5,6 +5,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { vscodeDark } from "@uiw/codemirror-theme-vscode";
 import { Pyodide } from "@/app/lib/pyodide";
+import { useWebSocket } from "@/app/lib/websockets";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -49,11 +50,12 @@ async function runAllTestCases(code: string, pyodide: any, testCases: any[], set
 }
 
 export default function CodeEditor({time, parameters}: {time: number, parameters: any}) {
-  const [value, setValue] = useState(generateStartFunction(parameters));
+  
   const [result, setResult] = useState("");
   const [pythonLoading, setPythonLoading] = useState(true);
   const pyodideRef = useRef(null);
- 
+  const {code, setCode} = useWebSocket();
+  const { socket, roomId, sendMessage } = useWebSocket();
   const [testCases, setTestCases] = useState([{name: 'case 1', vals:[1,2], output: ""},{name: 'case 2', vals:[1,2], output: ""}]);
     const [activeTestCase, setActiveTestCase] = useState(0);
     
@@ -70,9 +72,16 @@ export default function CodeEditor({time, parameters}: {time: number, parameters
 
 
   const onChange = React.useCallback((val) => {
-    setValue(val);
+    setCode(val);
   }, []);
 
+  const submit = () => {
+    if (!roomId) {
+      console.error("No roomId available");
+      return;
+    }
+    sendMessage({ type: "bot_code", code: value, roomId: roomId });
+  }
    
 
 
@@ -83,6 +92,7 @@ export default function CodeEditor({time, parameters}: {time: number, parameters
             <div>
                 <div className={styles.time}>{time}</div>
             </div>
+            <button onClick={submit} className={styles.button}>Submit</button>
         </div>
      <ResizablePanelGroup
       id="horizontal-group"
@@ -103,7 +113,7 @@ export default function CodeEditor({time, parameters}: {time: number, parameters
               <div className={styles.topPanel}>Code</div>
               <div className={styles.panel}>
                 <CodeMirror
-                  value={value}
+                  value={code}
                   extensions={[python()]}
                   onChange={onChange}
                   theme={vscodeDark}
@@ -121,7 +131,7 @@ export default function CodeEditor({time, parameters}: {time: number, parameters
             <h2>Testing</h2>
             </div>
             <div>
-                <button className={styles.button} onClick={() => runAllTestCases(value,pyodideRef.current,testCases, setTestCases)}>Run Code </button>
+                <button className={styles.button} onClick={() => runAllTestCases(code,pyodideRef.current,testCases, setTestCases)}>Run Code </button>
             </div>
         </div></div>
               <div className={styles.panel}>
