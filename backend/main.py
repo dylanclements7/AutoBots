@@ -25,287 +25,286 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["clarkathon2025"]
 games_collection = db["games"]
 user_data = db["users"]
-# games_collection.insert_one({
-#     "title": "connect4",
-#     "objective": "Build a connect four bot that can outsmart your opponent",
-#     "game_summary": "Connect 4 is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color.",
-#     "win_condition": "First player to connect four of their symbols in a row (horizontally, vertically, or diagonally) wins. If the board fills up without a winner, the game ends in a draw.",
-#     "task": "Create a bot that can play Connect 4 by implementing strategies to block your opponent and create opportunities to win.",
-#     "bot_input_format": "Your bot will receive the current game board as a 2D array, where empty cells are represented by ' ', your pieces by 'X', and your opponent's pieces by 'O'.",
-#     "bot_output_format": "Your bot should output the column index (0-6) where it wants to drop its piece.",
-#     "state_format": {"board": [[" " for _ in range(7)] for _ in range(6)], "current_player": "X"},
-#     "player_symbols": ["X", "O"],
-#     "difficulty": "Medium",
-#     "code": r'''
-# from typing import Optional
+games_collection.insert_one({
+    "title": "connect4",
+    "objective": "Build a connect four bot that can outsmart your opponent",
+    "game_summary": "Connect 4 is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color.",
+    "win_condition": "First player to connect four of their symbols in a row (horizontally, vertically, or diagonally) wins. If the board fills up without a winner, the game ends in a draw.",
+    "task": "Create a bot that can play Connect 4 by implementing strategies to block your opponent and create opportunities to win.",
+    "bot_input_format": "Your bot will receive the current game board as a 2D array, where empty cells are represented by ' ', your pieces by 'X', and your opponent's pieces by 'O'.",
+    "bot_output_format": "Your bot should output the column index (0-6) where it wants to drop its piece.",
+    "state_format": {"board": [[" " for _ in range(7)] for _ in range(6)], "current_player": "X"},
+    "player_symbols": ["X", "O"],
+    "difficulty": "Medium",
+    "code": r'''
+from typing import Optional
 
-# def is_valid_move(board, col: int) -> bool:
-#     """Check if a column has space"""
-#     if col < 0 or col >= 7:
-#         return False
-#     return board[0][col] == " "
-
-
-# def make_move(board, col: int, symbol: str) -> bool:
-#     """Make a move and return success"""
-#     if not is_valid_move(board, col):
-#         return False
-    
-#     # Drop piece
-#     for row in reversed(board):
-#         if row[col] == " ":
-#             row[col] = symbol
-#             break
-    
-#     return True
+def is_valid_move(board, col: int) -> bool:
+    """Check if a column has space"""
+    if col < 0 or col >= 7:
+        return False
+    return board[0][col] == " "
 
 
-# def check_winner(board) -> Optional[str]:
-#     """Check for a winner in Connect 4. Returns 'X', 'O', 'draw', or None"""
-#     rows, cols = 6, 7
+def make_move(board, col: int, symbol: str):
+    """Make a move and return success"""
+    if not is_valid_move(board, col):
+        return (True, board)
     
-#     # Check horizontal
-#     for r in range(rows):
-#         for c in range(cols - 3):
-#             if board[r][c] != " " and all(board[r][c+i] == board[r][c] for i in range(4)):
-#                 return board[r][c]
+    # Drop piece
+    for row in reversed(board):
+        if row[col] == " ":
+            row[col] = symbol
+            break
     
-#     # Check vertical
-#     for r in range(rows - 3):
-#         for c in range(cols):
-#             if board[r][c] != " " and all(board[r+i][c] == board[r][c] for i in range(4)):
-#                 return board[r][c]
-    
-#     # Check diagonal (down-right)
-#     for r in range(rows - 3):
-#         for c in range(cols - 3):
-#             if board[r][c] != " " and all(board[r+i][c+i] == board[r][c] for i in range(4)):
-#                 return board[r][c]
-    
-#     # Check diagonal (down-left)
-#     for r in range(rows - 3):
-#         for c in range(3, cols):
-#             if board[r][c] != " " and all(board[r+i][c-i] == board[r][c] for i in range(4)):
-#                 return board[r][c]
-    
-#     # Check for draw
-#     if all(board[0][c] != " " for c in range(cols)):
-#         return "draw"
-    
-#     return None
-# ''',
-#     "html": """<!DOCTYPE html>
-# <html>
-# <head>
-#     <meta charset="UTF-8">
-#     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-#     <title>Connect 4 Board</title>
-#     <style>
-#         body {
-#             margin: 0;
-#             padding: 20px;
-#             font-family: Arial, sans-serif;
-#             background: #1a1a2e;
-#             display: flex;
-#             justify-content: center;
-#             align-items: center;
-#             min-height: 100vh;
-#         }
-        
-#         .container {
-#             text-align: center;
-#         }
-        
-#         .board {
-#             display: inline-grid;
-#             grid-template-columns: repeat(7, 70px);
-#             gap: 8px;
-#             background: #0066cc;
-#             padding: 15px;
-#             border-radius: 10px;
-#             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-#         }
-        
-#         .cell {
-#             width: 70px;
-#             height: 70px;
-#             background: white;
-#             border-radius: 50%;
-#             display: flex;
-#             align-items: center;
-#             justify-content: center;
-#             font-size: 40px;
-#             font-weight: bold;
-#             transition: all 0.3s ease;
-#             box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.2);
-#         }
-        
-#         .cell.X {
-#             background: #ff4444;
-#             box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
-#             animation: drop 0.4s ease-out;
-#         }
-        
-#         .cell.O {
-#             background: #ffeb3b;
-#             box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
-#             animation: drop 0.4s ease-out;
-#         }
-        
-#         @keyframes drop {
-#             0% {
-#                 transform: translateY(-500px);
-#                 opacity: 0;
-#             }
-#             60% {
-#                 transform: translateY(10px);
-#             }
-#             100% {
-#                 transform: translateY(0);
-#                 opacity: 1;
-#             }
-#         }
-        
-#         .status {
-#             margin-top: 20px;
-#             color: white;
-#             font-size: 20px;
-#             padding: 10px;
-#             background: rgba(255, 255, 255, 0.1);
-#             border-radius: 5px;
-#         }
-        
-#         .player-info {
-#             margin-bottom: 20px;
-#             color: white;
-#             font-size: 18px;
-#         }
-        
-#         .turn-indicator {
-#             display: inline-block;
-#             width: 15px;
-#             height: 15px;
-#             border-radius: 50%;
-#             margin-left: 10px;
-#             animation: pulse 1s infinite;
-#         }
-        
-#         @keyframes pulse {
-#             0%, 100% { opacity: 1; }
-#             50% { opacity: 0.5; }
-#         }
-#     </style>
-# </head>
-# <body>
-#     <div class="container">
-#         <div class="player-info">
-#             <span id="playerSymbol">Waiting...</span>
-#             <span id="turnIndicator" class="turn-indicator" style="display: none;"></span>
-#         </div>
-#         <div class="board" id="board"></div>
-#         <div class="status" id="status">Connecting...</div>
-#     </div>
+    return (False, board)
 
-#     <script>
-#         const boardEl = document.getElementById('board');
-#         const statusEl = document.getElementById('status');
-#         const playerSymbolEl = document.getElementById('playerSymbol');
-#         const turnIndicatorEl = document.getElementById('turnIndicator');
+def check_winner(board) -> Optional[str]:
+    """Check for a winner in Connect 4. Returns 'X', 'O', 'draw', or None"""
+    rows, cols = 6, 7
+    
+    # Check horizontal
+    for r in range(rows):
+        for c in range(cols - 3):
+            if board[r][c] != " " and all(board[r][c+i] == board[r][c] for i in range(4)):
+                return board[r][c]
+    
+    # Check vertical
+    for r in range(rows - 3):
+        for c in range(cols):
+            if board[r][c] != " " and all(board[r+i][c] == board[r][c] for i in range(4)):
+                return board[r][c]
+    
+    # Check diagonal (down-right)
+    for r in range(rows - 3):
+        for c in range(cols - 3):
+            if board[r][c] != " " and all(board[r+i][c+i] == board[r][c] for i in range(4)):
+                return board[r][c]
+    
+    # Check diagonal (down-left)
+    for r in range(rows - 3):
+        for c in range(3, cols):
+            if board[r][c] != " " and all(board[r+i][c-i] == board[r][c] for i in range(4)):
+                return board[r][c]
+    
+    # Check for draw
+    if all(board[0][c] != " " for c in range(cols)):
+        return "draw"
+    
+    return None
+''',
+    "html": """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect 4 Board</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
         
-#         let mySymbol = '';
-#         let currentBoard = [];
+        .container {
+            text-align: center;
+        }
         
-#         // Initialize empty board
-#         function initBoard() {
-#             boardEl.innerHTML = '';
-#             for (let row = 0; row < 6; row++) {
-#                 for (let col = 0; col < 7; col++) {
-#                     const cell = document.createElement('div');
-#                     cell.className = 'cell';
-#                     cell.dataset.row = row;
-#                     cell.dataset.col = col;
-#                     boardEl.appendChild(cell);
-#                 }
-#             }
-#         }
+        .board {
+            display: inline-grid;
+            grid-template-columns: repeat(7, 70px);
+            gap: 8px;
+            background: #0066cc;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
         
-#         // Update board display
-#         function updateBoard(board) {
-#             currentBoard = board;
-#             const cells = boardEl.querySelectorAll('.cell');
+        .cell {
+            width: 70px;
+            height: 70px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .cell.X {
+            background: #ff4444;
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
+            animation: drop 0.4s ease-out;
+        }
+        
+        .cell.O {
+            background: #ffeb3b;
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
+            animation: drop 0.4s ease-out;
+        }
+        
+        @keyframes drop {
+            0% {
+                transform: translateY(-500px);
+                opacity: 0;
+            }
+            60% {
+                transform: translateY(10px);
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .status {
+            margin-top: 20px;
+            color: white;
+            font-size: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        .player-info {
+            margin-bottom: 20px;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .turn-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="player-info">
+            <span id="playerSymbol">Waiting...</span>
+            <span id="turnIndicator" class="turn-indicator" style="display: none;"></span>
+        </div>
+        <div class="board" id="board"></div>
+        <div class="status" id="status">Connecting...</div>
+    </div>
+
+    <script>
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+        const playerSymbolEl = document.getElementById('playerSymbol');
+        const turnIndicatorEl = document.getElementById('turnIndicator');
+        
+        let mySymbol = '';
+        let currentBoard = [];
+        
+        // Initialize empty board
+        function initBoard() {
+            boardEl.innerHTML = '';
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+        
+        // Update board display
+        function updateBoard(board) {
+            currentBoard = board;
+            const cells = boardEl.querySelectorAll('.cell');
             
-#             board.forEach((row, rowIdx) => {
-#                 row.forEach((cell, colIdx) => {
-#                     const cellIdx = rowIdx * 7 + colIdx;
-#                     const cellEl = cells[cellIdx];
+            board.forEach((row, rowIdx) => {
+                row.forEach((cell, colIdx) => {
+                    const cellIdx = rowIdx * 7 + colIdx;
+                    const cellEl = cells[cellIdx];
                     
-#                     // Remove old classes
-#                     cellEl.classList.remove('X', 'O');
+                    // Remove old classes
+                    cellEl.classList.remove('X', 'O');
                     
-#                     // Add new class if occupied
-#                     if (cell === 'X') {
-#                         cellEl.classList.add('X');
-#                     } else if (cell === 'O') {
-#                         cellEl.classList.add('O');
-#                     }
-#                 });
-#             });
-#         }
+                    // Add new class if occupied
+                    if (cell === 'X') {
+                        cellEl.classList.add('X');
+                    } else if (cell === 'O') {
+                        cellEl.classList.add('O');
+                    }
+                });
+            });
+        }
         
-#         // Listen for messages from parent window
-#         window.addEventListener('message', (event) => {
-#             const data = event.data;
+        // Listen for messages from parent window
+        window.addEventListener('message', (event) => {
+            const data = event.data;
             
-#             if (data.type === 'game_start') {
-#                 mySymbol = data.symbol;
-#                 playerSymbolEl.textContent = `You are: ${mySymbol} (${mySymbol === 'X' ? '🔴 Red' : '🟡 Yellow'})`;
-#                 updateBoard(data.board);
-#                 statusEl.textContent = 'Game started!';
-#             } 
-#             else if (data.type === 'board_update') {
-#                 updateBoard(data.gameState || data.board);
-#                 statusEl.textContent = 'Board updated';
-#             }
-#             else if (data.type === 'your_turn') {
-#                 updateBoard(data.gameState || data.board);
-#                 statusEl.textContent = '🤖 Your turn! Running bot...';
-#                 turnIndicatorEl.style.display = 'inline-block';
-#                 turnIndicatorEl.style.background = mySymbol === 'X' ? '#ff4444' : '#ffeb3b';
-#             }
-#             else if (data.type === 'waiting') {
-#                 statusEl.textContent = "⏳ Opponent's turn...";
-#                 turnIndicatorEl.style.display = 'none';
-#             }
-#             else if (data.type === 'game_over') {
-#                 if (data.board) updateBoard(data.board);
+            if (data.type === 'game_start') {
+                mySymbol = data.symbol;
+                playerSymbolEl.textContent = `You are: ${mySymbol} (${mySymbol === 'X' ? '🔴 Red' : '🟡 Yellow'})`;
+                updateBoard(data.board);
+                statusEl.textContent = 'Game started!';
+            } 
+            else if (data.type === 'board_update') {
+                updateBoard(data.gameState || data.board);
+                statusEl.textContent = 'Board updated';
+            }
+            else if (data.type === 'your_turn') {
+                updateBoard(data.gameState || data.board);
+                statusEl.textContent = '🤖 Your turn! Running bot...';
+                turnIndicatorEl.style.display = 'inline-block';
+                turnIndicatorEl.style.background = mySymbol === 'X' ? '#ff4444' : '#ffeb3b';
+            }
+            else if (data.type === 'waiting') {
+                statusEl.textContent = "⏳ Opponent's turn...";
+                turnIndicatorEl.style.display = 'none';
+            }
+            else if (data.type === 'game_over') {
+                if (data.board) updateBoard(data.board);
                 
-#                 let msg = '';
-#                 if (data.winner === 'draw') {
-#                     msg = '🤝 Game ended in a draw!';
-#                 } else if (data.winner === mySymbol) {
-#                     msg = '🎉 You won!';
-#                 } else {
-#                     msg = `😞 You lost. Winner: ${data.winner}`;
-#                 }
+                let msg = '';
+                if (data.winner === 'draw') {
+                    msg = '🤝 Game ended in a draw!';
+                } else if (data.winner === mySymbol) {
+                    msg = '🎉 You won!';
+                } else {
+                    msg = `😞 You lost. Winner: ${data.winner}`;
+                }
                 
-#                 statusEl.textContent = msg;
-#                 turnIndicatorEl.style.display = 'none';
-#             }
-#             else if (data.type === 'status') {
-#                 statusEl.textContent = data.message;
-#             }
-#         });
+                statusEl.textContent = msg;
+                turnIndicatorEl.style.display = 'none';
+            }
+            else if (data.type === 'status') {
+                statusEl.textContent = data.message;
+            }
+        });
         
-#         // Initialize
-#         initBoard();
+        // Initialize
+        initBoard();
         
-#         // Tell parent we're ready
-#         window.parent.postMessage({ type: 'board_ready' }, '*');
-#     </script>
-# </body>
-# </html>
-# """
-# })
+        // Tell parent we're ready
+        window.parent.postMessage({ type: 'board_ready' }, '*');
+    </script>
+</body>
+</html>
+"""
+})
 
 games_collection.insert_one({
     "title": "tictactoe",
@@ -320,6 +319,7 @@ games_collection.insert_one({
     "difficulty": "Easy",
     "code": r'''
 from typing import Optional
+
 def is_valid_move(board, pos: int) -> bool:
     """
     Check if a move is valid.
@@ -332,14 +332,14 @@ def is_valid_move(board, pos: int) -> bool:
     return board[row][col] == " "
 
 
-def make_move(board, pos: int, symbol: str) -> bool:
+def make_move(board, pos: int, symbol: str):
     """Place the symbol if the move is valid. Return True if move made."""
     if not is_valid_move(board, pos):
-        return False
+        return (True, board)
     
     row, col = divmod(pos, 3)
     board[row][col] = symbol
-    return True
+    return (False, board)
 
 
 def check_winner(board) -> Optional[str]:
