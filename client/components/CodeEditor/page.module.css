@@ -116,3 +116,9 @@
     background-color: var(--muted);
     font-family: monospace;
 }
+
+.testLabel{
+    color: rgb(177, 176, 176);
+    margin-left: 10px;
+    margin-top: 40px;
+}
