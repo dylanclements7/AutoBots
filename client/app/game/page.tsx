@@ -44,7 +44,7 @@ export default function GameBrowsePage() {
             //   href={`/game/${game.id}`}
             //   className="block group"
             // >
-              <GameCard game={game} gameData={games.gameData.game} />
+              <GameCard game={game} gameData={games.gameData?.[game]} />
             // </Link>
           ))}
         </div>

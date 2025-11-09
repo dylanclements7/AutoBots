@@ -14,7 +14,7 @@ export default function Game() {
     const [code, setCode] = useState("def game(state):\n return None");
     const [gameState, setGameState] = useState<any>(null);
     const pyodideRef = useRef<any>(null);
-    const { socket, isConnected, lobbyState, matchState, gameMessage, roomId, connect, disconnect, sendMessage, setMatchState } = useWebSocket();
+    const { socket, isConnected, lobbyState, matchState, gameMessage, roomId, connect, disconnect, sendMessage, setMatchState, gameData } = useWebSocket();
 
     // Load Pyodide on mount
     useEffect(() => {
@@ -115,6 +115,7 @@ export default function Game() {
             <CodeEditor 
             code={code} 
             setCode = {setCode}
+            gameData={gameData}
             time={currentTime} parameters={[
                 {name: "num1", type: "int"}, 
                 {name: "num2", type: "int"}

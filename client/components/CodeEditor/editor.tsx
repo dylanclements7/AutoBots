@@ -49,7 +49,7 @@ async function runAllTestCases(code: string, pyodide: any, testCases: any[], set
     setTestCases(updatedTestCases);
 }
 
-export default function CodeEditor({time, parameters, code, setCode}: {time: number, parameters: any, code: string, setCode: (code: string) => void}) {
+export default function CodeEditor({time, parameters, code, setCode, gameData}: {time: number, parameters: any, code: string, setCode: (code: string) => void, gameData: any}) {
   
   const [result, setResult] = useState("");
   const [pythonLoading, setPythonLoading] = useState(true);
@@ -90,7 +90,7 @@ export default function CodeEditor({time, parameters, code, setCode}: {time: num
     <>
     {!waiting && <div className="h-[calc(100%-10px)]">
         <div className={styles.header}>
-            <div>Title Title</div>
+            <div>{gameData.title}</div>
             <div>
                 <div className={styles.time}>{time}</div>
             </div>
@@ -103,8 +103,7 @@ export default function CodeEditor({time, parameters, code, setCode}: {time: num
     >
       <ResizablePanel id="left-panel" defaultSize={50} className="margin-5" minSize={5}>
         <div className={styles.panel}  >
-          <p>Welcome to BotArena! Program. Compete. Dominate. In BotArena, you’ll design intelligent bots that battle for supremacy in a variety of games — from capture-the-flag to resource wars. Write your bot’s logic in Python or JavaScript, upload your code, and watch the chaos unfold. How it works: 1) Choose a Game Mode – select a battle type: Maze Runner, Tank Wars, or Grid Conquest. 2) Code Your Bot – write strategies, decision trees, or neural logic to guide your bot’s actions. 3) Simulate Battles – watch bots clash in real-time simulations or step-by-step replays. 4) Climb the Leaderboard – compete against classmates, friends, or global challengers for eternal glory. Example Bot (Python): class MyBot: def move(self, state): # Simple strategy: attack nearest enemy enemies = state.get_visible_enemies() if enemies: return self.attack(enemies[0]) return self.move_random(). Upcoming Tournaments: Bot Royale – every bot for itself. Only one survives. Team Tactics – collaborate and conquer in 2v2 battles. AI Gauntlet – face a lineup of developer-designed bosses. Get Started: Create your first bot now and join the next match. May the best algorithm win.</p>
-
+          <p>{gameData.description}</p>
         </div>
       </ResizablePanel>
       <ResizableHandle />
