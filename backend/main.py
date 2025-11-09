@@ -664,8 +664,8 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
     """
     await websocket.accept()
     
-    # Validate game type
-    game = games_collection.find_one({"name": game_type})
+    # Validate game type (using title as identifier since name field doesn't exist yet)
+    game = games_collection.find_one({"title": game_type})
     if not game:
         await websocket.send_json({
             "type": "error",
@@ -788,7 +788,9 @@ async def get_lobby_status(game_type: str):
     """
     Get current lobby status for a game type
     """
-    games = [game["name"] for game in games_collection.find({}, {"name": 1})]
+    print([game for game in games_collection.find({}, {"name": 1})])
+    games = [game["title"] for game in games_collection.find({}, {"name": 1})]
+    print('GAMES', games)
     if game_type not in games:
         raise HTTPException(status_code=404, detail="Game type not found")
     
@@ -818,15 +820,19 @@ class GameModel(BaseModel):
     
 @app.post("/add_game_to_db")
 async def add_game_to_db(game: GameModel):
-    # Check if a game with this title already exists
-    if games_collection.find_one({"title": game.title}):
+    # Auto-generate name from title (lowercase, no spaces)
+    name = game.title.lower().replace(" ", "")
+    
+    # Check if a game with this name already exists
+    if games_collection.find_one({"name": name}):
         raise HTTPException(status_code=400, detail="A game with this title already exists.")
     
-    # Insert into MongoDB
+    # Insert into MongoDB with auto-generated name
     game_dict = game.dict()
+    game_dict["name"] = name
     games_collection.insert_one(game_dict)
 
-    return {"message": "Game added successfully!", "title": game.title}
+    return {"message": "Game added successfully!", "title": game.title, "name": name}
 
 
 # Optional: Serve static files for frontend

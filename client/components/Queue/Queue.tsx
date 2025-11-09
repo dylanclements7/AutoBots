@@ -20,15 +20,6 @@ export default function MatchmakingQueue({gameId, name, gameData}: {gameId: stri
   const username = localStorage.getItem('user') || 'user1';
   const { connect, disconnect, lobbyState, isConnected, setGameData } = useWebSocket();
   
-  useEffect(() => {
-    // Load initial queue state on mount
-    getQueue(name, (queueData: any) => {
-      if (queueData && queueData.players) {
-        setPlayers(queueData.players);
-      }
-    }, setLoading);
-  }, [name]);
-
   // Update players when lobby state changes
   useEffect(() => {
     if (lobbyState) {
@@ -48,13 +39,7 @@ export default function MatchmakingQueue({gameId, name, gameData}: {gameId: stri
     setIsInQueue(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="text-muted-foreground">Loading matchmaking...</div>
-      </div>
-    );
-  }
+
 
 
   const totalPlayers = players.length;

@@ -43,7 +43,7 @@ export default function QueueDrawer({
           }
         >
           {" "}
-          <MatchmakingQueue name={game} gameId={game.id} gameData={gameData} />
+          <MatchmakingQueue name={game.title} gameId={game.id} gameData={gameData} />
         </div>
         <DrawerFooter>
           <button

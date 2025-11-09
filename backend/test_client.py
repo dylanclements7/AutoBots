@@ -70,7 +70,8 @@ async def test_player(username, delay=0):
                 elif msg_type == "game_over":
                     winner = data.get("winner")
                     reason = data.get("reason")
-                    print(f"[{username}] Game over! Winner: {winner}, Reason: {reason}")
+
+                    
                 
                 elif msg_type == "tournament_complete":
                     champion = data.get("champion")
