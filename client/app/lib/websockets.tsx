@@ -24,6 +24,8 @@ type WebSocketContextType = {
   disconnect: () => void;
   sendMessage: (message: any) => void;
   setMatchState: (state: number | null) => void;
+  gameData: any | null;
+  setGameData: (data: any | null) => void;
 };
 
 
@@ -36,6 +38,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const [matchState, setMatchState] = useState<number| null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [gameMessage, setGameMessage] = useState<GameMessage | null>(null);
+  const [gameData, setGameData] = useState<any | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const router = useRouter();
 
@@ -127,7 +130,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <WebSocketContext.Provider value={{ socket, isConnected, lobbyState, matchState, roomId, gameMessage, connect, disconnect, sendMessage, setMatchState }}>
+    <WebSocketContext.Provider value={{ socket, isConnected, lobbyState, matchState, roomId, gameMessage, gameData, connect, disconnect, sendMessage, setMatchState, setGameData }}>
       {children}
     </WebSocketContext.Provider>
   );

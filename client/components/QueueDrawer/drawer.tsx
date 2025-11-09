@@ -3,7 +3,7 @@ import { useState } from "react";
 import MatchmakingQueue from "@/components/Queue/Queue";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 
-export default function QueueDrawer({children, game}: {children: React.ReactNode, game: any}) {
+export default function QueueDrawer({children, game, gameData}: {children: React.ReactNode, game: any}) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -16,7 +16,7 @@ export default function QueueDrawer({children, game}: {children: React.ReactNode
                     <DrawerTitle>{game.name} Queue</DrawerTitle>
                     <DrawerDescription>Join the matchmaking queue for {game.name}</DrawerDescription>
                 </DrawerHeader>
-                <div className={"max-h-[calc(100vh-10rem)] overflow-y-auto max-w-[calc(100vw-10rem)]" }> <MatchmakingQueue name = {game} gameId={game.id}/></div>
+                <div className={"max-h-[calc(100vh-10rem)] overflow-y-auto max-w-[calc(100vw-10rem)]" }> <MatchmakingQueue name = {game} gameId={game.id} gameData={gameData}/></div>
                 <DrawerFooter>
                     <button 
                         onClick={() => setOpen(false)}

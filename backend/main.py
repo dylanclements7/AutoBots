@@ -30,6 +30,19 @@ games = [
     "tictactoe"
 ]
 
+gameData = {
+    "connect4": {
+        "title": "Connect 4",
+        "html":"html", 
+        "description":"Connect 4 is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color."
+    },
+    "tictactoe": {
+        "title": "Tic-Tac-Toe",
+        "html":"html", 
+        "description":"Tic-tac-toe is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color."
+    }
+}
+
 
 # @app.post("/sign_up")
 # def sign_up(username: str, password_hash: str):
@@ -160,7 +173,7 @@ async def get_games():
     """
     Return list of available games
     """
-    return {"games": games}
+    return {"games": games, "gameData": gameData}
 
 
 @app.get("/api/lobby/{game_type}/status")

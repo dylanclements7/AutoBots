@@ -11,14 +11,14 @@ interface Player {
   rating?: number;
 }
 
-export default function MatchmakingQueue({gameId, name}: {gameId: string, name:string}) {
+export default function MatchmakingQueue({gameId, name, gameData}: {gameId: string, name:string}) {
   const params = useParams();
   
   const [players, setPlayers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInQueue, setIsInQueue] = useState(false);
   const username = localStorage.getItem('user') || 'user1';
-  const { connect, disconnect, lobbyState, isConnected } = useWebSocket();
+  const { connect, disconnect, lobbyState, isConnected, setGameData } = useWebSocket();
   
   useEffect(() => {
     // Load initial queue state on mount
@@ -38,6 +38,7 @@ export default function MatchmakingQueue({gameId, name}: {gameId: string, name:s
   }, [lobbyState]);
 
   const handleJoinQueue = () => {
+    setGameData(gameData);
     connect(name, username);
     setIsInQueue(true);
   };
