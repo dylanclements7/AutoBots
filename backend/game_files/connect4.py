@@ -14,10 +14,10 @@ def is_valid_move(board, col: int) -> bool:
     return board[0][col] == " "
 
 
-def make_move(board, col: int, symbol: str) -> bool:
+def make_move(board, col: int, symbol: str):
     """Make a move and return success"""
     if not is_valid_move(board, col):
-        return False
+        return (True, board)
     
     # Drop piece
     for row in reversed(board):
@@ -25,8 +25,7 @@ def make_move(board, col: int, symbol: str) -> bool:
             row[col] = symbol
             break
     
-    return True
-
+    return (False, board)
 
 def check_winner(board) -> Optional[str]:
     """Check for a winner in Connect 4. Returns 'X', 'O', 'draw', or None"""
