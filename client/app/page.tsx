@@ -1,23 +1,25 @@
 "use client";
-import styles from "./page.module.css";
-import React, { useEffect, useState, useRef } from "react";
-import CodeMirror from "@uiw/react-codemirror";
-import { python } from "@codemirror/lang-python";
-import { vscodeDark } from "@uiw/codemirror-theme-vscode";
-import { Pyodide } from "./lib/pyodide";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable"
-import CodeEditor from "@/components/CodeEditor/editor"
 
-export default function App() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Run only on client side
+    const user = localStorage.getItem("user");
+
+    if (!user) {
+      router.replace("/login");
+    } else {
+      router.replace("/game");
+    }
+  }, [router]);
+
   return (
-    <CodeEditor parameters={[
-      //use python types
-      {name: "num1", type: "int"}, {name: "num2", type: "int"}
-    ]} />
-    
+    <div className="flex h-screen items-center justify-center">
+      <p>Checking user session...</p>
+    </div>
   );
 }
