@@ -271,7 +271,8 @@ export default function Game() {
             {matchState === 2 && (
                 <div style={{ padding: '20px' }}>
                     <h1>Game in Progress</h1>
-                    
+                    {gameMessage && gameMessage.type === "game_end" && (<h1>{gameMessage.winner} wins! {gameMessage.reason}</h1>)
+                        }
                     {/* NEW: Show the board from database */}
                     {boardHtml ? (
                         <GameBoard 
