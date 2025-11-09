@@ -585,10 +585,7 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
         await websocket.close()
         return
     
-<<<<<<< HEAD
     # Join lobby (not async anymore)
-=======
->>>>>>> newpistonproblems
     success = lobby.join_lobby(game_type, username, websocket)
     if not success:
         await websocket.send_json({
@@ -597,7 +594,6 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
         })
         await websocket.close()
         return
-<<<<<<< HEAD
     #check if a tournament can start
     tournament = await lobby.try_start_tournament(game_type)
     if tournament:
@@ -608,10 +604,6 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
         await websocket.close()
         return
 
-=======
-    
-    
->>>>>>> newpistonproblems
     # Now broadcast the updated lobby state
     await lobby.broadcast_lobby_state(game_type)
     
@@ -778,10 +770,9 @@ async def shutdown_event():
 
 
 # Optional: Serve static files for frontend
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    

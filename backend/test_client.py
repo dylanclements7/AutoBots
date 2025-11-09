@@ -1,8 +1,6 @@
 import asyncio
 import websockets
 import json
-
-# import pdb; pdb.set_trace()
 async def test_player(username, delay=0):
     await asyncio.sleep(delay)
     
@@ -14,7 +12,7 @@ async def test_player(username, delay=0):
             
             # First, try to receive the lobby state
             try:
-                initial_msg = await asyncio.wait_for(websocket.recv(), timeout=5)
+                initial_msg = await asyncio.wait_for(websocket.recv(), timeout=2)
                 print(f"[{username}] Initial message: {json.loads(initial_msg).get('type')}")
             except asyncio.TimeoutError:
                 print(f"[{username}] No initial message received")
