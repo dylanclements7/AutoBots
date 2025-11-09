@@ -1,7 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 from pymongo import MongoClient
 from lobby import Lobby
 import asyncio
@@ -20,239 +21,352 @@ app.add_middleware(
 # Initialize lobby system
 lobby = Lobby()
 
-# MongoDB setup
 client = MongoClient("mongodb://localhost:27017/")
 db = client["clarkathon2025"]
-user_data = db["users"]
 games_collection = db["games"]
+user_data = db["users"]
+# games_collection.insert_one({
+#     "title": "connect4",
+#     "objective": "Build a connect four bot that can outsmart your opponent",
+#     "game_summary": "Connect 4 is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color.",
+#     "win_condition": "First player to connect four of their symbols in a row (horizontally, vertically, or diagonally) wins. If the board fills up without a winner, the game ends in a draw.",
+#     "task": "Create a bot that can play Connect 4 by implementing strategies to block your opponent and create opportunities to win.",
+#     "bot_input_format": "Your bot will receive the current game board as a 2D array, where empty cells are represented by ' ', your pieces by 'X', and your opponent's pieces by 'O'.",
+#     "bot_output_format": "Your bot should output the column index (0-6) where it wants to drop its piece.",
+#     "state_format": {"board": [[" " for _ in range(7)] for _ in range(6)], "current_player": "X"},
+#     "player_symbols": ["X", "O"],
+#     "difficulty": "Medium",
+#     "code": r'''
+# from typing import Optional
 
-# Supported games
-games = [
-    "connect4",
-    "tictactoe"
-]
+# def is_valid_move(board, col: int) -> bool:
+#     """Check if a column has space"""
+#     if col < 0 or col >= 7:
+#         return False
+#     return board[0][col] == " "
 
-gameData = {
-    "connect4": {
-        "title": "Connect 4",
-        "html":"""
-    <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connect 4 Board</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background: #1a1a2e;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        
-        .container {
-            text-align: center;
-        }
-        
-        .board {
-            display: inline-grid;
-            grid-template-columns: repeat(7, 70px);
-            gap: 8px;
-            background: #0066cc;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        .cell {
-            width: 70px;
-            height: 70px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        .cell.X {
-            background: #ff4444;
-            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
-            animation: drop 0.4s ease-out;
-        }
-        
-        .cell.O {
-            background: #ffeb3b;
-            box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
-            animation: drop 0.4s ease-out;
-        }
-        
-        @keyframes drop {
-            0% {
-                transform: translateY(-500px);
-                opacity: 0;
-            }
-            60% {
-                transform: translateY(10px);
-            }
-            100% {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .status {
-            margin-top: 20px;
-            color: white;
-            font-size: 20px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-        }
-        
-        .player-info {
-            margin-bottom: 20px;
-            color: white;
-            font-size: 18px;
-        }
-        
-        .turn-indicator {
-            display: inline-block;
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            margin-left: 10px;
-            animation: pulse 1s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="player-info">
-            <span id="playerSymbol">Waiting...</span>
-            <span id="turnIndicator" class="turn-indicator" style="display: none;"></span>
-        </div>
-        <div class="board" id="board"></div>
-        <div class="status" id="status">Connecting...</div>
-    </div>
 
-    <script>
-        const boardEl = document.getElementById('board');
-        const statusEl = document.getElementById('status');
-        const playerSymbolEl = document.getElementById('playerSymbol');
-        const turnIndicatorEl = document.getElementById('turnIndicator');
+# def make_move(board, col: int, symbol: str) -> bool:
+#     """Make a move and return success"""
+#     if not is_valid_move(board, col):
+#         return False
+    
+#     # Drop piece
+#     for row in reversed(board):
+#         if row[col] == " ":
+#             row[col] = symbol
+#             break
+    
+#     return True
+
+
+# def check_winner(board) -> Optional[str]:
+#     """Check for a winner in Connect 4. Returns 'X', 'O', 'draw', or None"""
+#     rows, cols = 6, 7
+    
+#     # Check horizontal
+#     for r in range(rows):
+#         for c in range(cols - 3):
+#             if board[r][c] != " " and all(board[r][c+i] == board[r][c] for i in range(4)):
+#                 return board[r][c]
+    
+#     # Check vertical
+#     for r in range(rows - 3):
+#         for c in range(cols):
+#             if board[r][c] != " " and all(board[r+i][c] == board[r][c] for i in range(4)):
+#                 return board[r][c]
+    
+#     # Check diagonal (down-right)
+#     for r in range(rows - 3):
+#         for c in range(cols - 3):
+#             if board[r][c] != " " and all(board[r+i][c+i] == board[r][c] for i in range(4)):
+#                 return board[r][c]
+    
+#     # Check diagonal (down-left)
+#     for r in range(rows - 3):
+#         for c in range(3, cols):
+#             if board[r][c] != " " and all(board[r+i][c-i] == board[r][c] for i in range(4)):
+#                 return board[r][c]
+    
+#     # Check for draw
+#     if all(board[0][c] != " " for c in range(cols)):
+#         return "draw"
+    
+#     return None
+# ''',
+#     "html": """<!DOCTYPE html>
+# <html>
+# <head>
+#     <meta charset="UTF-8">
+#     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+#     <title>Connect 4 Board</title>
+#     <style>
+#         body {
+#             margin: 0;
+#             padding: 20px;
+#             font-family: Arial, sans-serif;
+#             background: #1a1a2e;
+#             display: flex;
+#             justify-content: center;
+#             align-items: center;
+#             min-height: 100vh;
+#         }
         
-        let mySymbol = '';
-        let currentBoard = [];
+#         .container {
+#             text-align: center;
+#         }
         
-        // Initialize empty board
-        function initBoard() {
-            boardEl.innerHTML = '';
-            for (let row = 0; row < 6; row++) {
-                for (let col = 0; col < 7; col++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.row = row;
-                    cell.dataset.col = col;
-                    boardEl.appendChild(cell);
-                }
-            }
-        }
+#         .board {
+#             display: inline-grid;
+#             grid-template-columns: repeat(7, 70px);
+#             gap: 8px;
+#             background: #0066cc;
+#             padding: 15px;
+#             border-radius: 10px;
+#             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+#         }
         
-        // Update board display
-        function updateBoard(board) {
-            currentBoard = board;
-            const cells = boardEl.querySelectorAll('.cell');
+#         .cell {
+#             width: 70px;
+#             height: 70px;
+#             background: white;
+#             border-radius: 50%;
+#             display: flex;
+#             align-items: center;
+#             justify-content: center;
+#             font-size: 40px;
+#             font-weight: bold;
+#             transition: all 0.3s ease;
+#             box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.2);
+#         }
+        
+#         .cell.X {
+#             background: #ff4444;
+#             box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
+#             animation: drop 0.4s ease-out;
+#         }
+        
+#         .cell.O {
+#             background: #ffeb3b;
+#             box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.4);
+#             animation: drop 0.4s ease-out;
+#         }
+        
+#         @keyframes drop {
+#             0% {
+#                 transform: translateY(-500px);
+#                 opacity: 0;
+#             }
+#             60% {
+#                 transform: translateY(10px);
+#             }
+#             100% {
+#                 transform: translateY(0);
+#                 opacity: 1;
+#             }
+#         }
+        
+#         .status {
+#             margin-top: 20px;
+#             color: white;
+#             font-size: 20px;
+#             padding: 10px;
+#             background: rgba(255, 255, 255, 0.1);
+#             border-radius: 5px;
+#         }
+        
+#         .player-info {
+#             margin-bottom: 20px;
+#             color: white;
+#             font-size: 18px;
+#         }
+        
+#         .turn-indicator {
+#             display: inline-block;
+#             width: 15px;
+#             height: 15px;
+#             border-radius: 50%;
+#             margin-left: 10px;
+#             animation: pulse 1s infinite;
+#         }
+        
+#         @keyframes pulse {
+#             0%, 100% { opacity: 1; }
+#             50% { opacity: 0.5; }
+#         }
+#     </style>
+# </head>
+# <body>
+#     <div class="container">
+#         <div class="player-info">
+#             <span id="playerSymbol">Waiting...</span>
+#             <span id="turnIndicator" class="turn-indicator" style="display: none;"></span>
+#         </div>
+#         <div class="board" id="board"></div>
+#         <div class="status" id="status">Connecting...</div>
+#     </div>
+
+#     <script>
+#         const boardEl = document.getElementById('board');
+#         const statusEl = document.getElementById('status');
+#         const playerSymbolEl = document.getElementById('playerSymbol');
+#         const turnIndicatorEl = document.getElementById('turnIndicator');
+        
+#         let mySymbol = '';
+#         let currentBoard = [];
+        
+#         // Initialize empty board
+#         function initBoard() {
+#             boardEl.innerHTML = '';
+#             for (let row = 0; row < 6; row++) {
+#                 for (let col = 0; col < 7; col++) {
+#                     const cell = document.createElement('div');
+#                     cell.className = 'cell';
+#                     cell.dataset.row = row;
+#                     cell.dataset.col = col;
+#                     boardEl.appendChild(cell);
+#                 }
+#             }
+#         }
+        
+#         // Update board display
+#         function updateBoard(board) {
+#             currentBoard = board;
+#             const cells = boardEl.querySelectorAll('.cell');
             
-            board.forEach((row, rowIdx) => {
-                row.forEach((cell, colIdx) => {
-                    const cellIdx = rowIdx * 7 + colIdx;
-                    const cellEl = cells[cellIdx];
+#             board.forEach((row, rowIdx) => {
+#                 row.forEach((cell, colIdx) => {
+#                     const cellIdx = rowIdx * 7 + colIdx;
+#                     const cellEl = cells[cellIdx];
                     
-                    // Remove old classes
-                    cellEl.classList.remove('X', 'O');
+#                     // Remove old classes
+#                     cellEl.classList.remove('X', 'O');
                     
-                    // Add new class if occupied
-                    if (cell === 'X') {
-                        cellEl.classList.add('X');
-                    } else if (cell === 'O') {
-                        cellEl.classList.add('O');
-                    }
-                });
-            });
-        }
+#                     // Add new class if occupied
+#                     if (cell === 'X') {
+#                         cellEl.classList.add('X');
+#                     } else if (cell === 'O') {
+#                         cellEl.classList.add('O');
+#                     }
+#                 });
+#             });
+#         }
         
-        // Listen for messages from parent window
-        window.addEventListener('message', (event) => {
-            const data = event.data;
+#         // Listen for messages from parent window
+#         window.addEventListener('message', (event) => {
+#             const data = event.data;
             
-            if (data.type === 'game_start') {
-                mySymbol = data.symbol;
-                playerSymbolEl.textContent = `You are: ${mySymbol} (${mySymbol === 'X' ? '🔴 Red' : '🟡 Yellow'})`;
-                updateBoard(data.board);
-                statusEl.textContent = 'Game started!';
-            } 
-            else if (data.type === 'board_update') {
-                updateBoard(data.gameState || data.board);
-                statusEl.textContent = 'Board updated';
-            }
-            else if (data.type === 'your_turn') {
-                updateBoard(data.gameState || data.board);
-                statusEl.textContent = '🤖 Your turn! Running bot...';
-                turnIndicatorEl.style.display = 'inline-block';
-                turnIndicatorEl.style.background = mySymbol === 'X' ? '#ff4444' : '#ffeb3b';
-            }
-            else if (data.type === 'waiting') {
-                statusEl.textContent = "⏳ Opponent's turn...";
-                turnIndicatorEl.style.display = 'none';
-            }
-            else if (data.type === 'game_over') {
-                if (data.board) updateBoard(data.board);
+#             if (data.type === 'game_start') {
+#                 mySymbol = data.symbol;
+#                 playerSymbolEl.textContent = `You are: ${mySymbol} (${mySymbol === 'X' ? '🔴 Red' : '🟡 Yellow'})`;
+#                 updateBoard(data.board);
+#                 statusEl.textContent = 'Game started!';
+#             } 
+#             else if (data.type === 'board_update') {
+#                 updateBoard(data.gameState || data.board);
+#                 statusEl.textContent = 'Board updated';
+#             }
+#             else if (data.type === 'your_turn') {
+#                 updateBoard(data.gameState || data.board);
+#                 statusEl.textContent = '🤖 Your turn! Running bot...';
+#                 turnIndicatorEl.style.display = 'inline-block';
+#                 turnIndicatorEl.style.background = mySymbol === 'X' ? '#ff4444' : '#ffeb3b';
+#             }
+#             else if (data.type === 'waiting') {
+#                 statusEl.textContent = "⏳ Opponent's turn...";
+#                 turnIndicatorEl.style.display = 'none';
+#             }
+#             else if (data.type === 'game_over') {
+#                 if (data.board) updateBoard(data.board);
                 
-                let msg = '';
-                if (data.winner === 'draw') {
-                    msg = '🤝 Game ended in a draw!';
-                } else if (data.winner === mySymbol) {
-                    msg = '🎉 You won!';
-                } else {
-                    msg = `😞 You lost. Winner: ${data.winner}`;
-                }
+#                 let msg = '';
+#                 if (data.winner === 'draw') {
+#                     msg = '🤝 Game ended in a draw!';
+#                 } else if (data.winner === mySymbol) {
+#                     msg = '🎉 You won!';
+#                 } else {
+#                     msg = `😞 You lost. Winner: ${data.winner}`;
+#                 }
                 
-                statusEl.textContent = msg;
-                turnIndicatorEl.style.display = 'none';
-            }
-            else if (data.type === 'status') {
-                statusEl.textContent = data.message;
-            }
-        });
+#                 statusEl.textContent = msg;
+#                 turnIndicatorEl.style.display = 'none';
+#             }
+#             else if (data.type === 'status') {
+#                 statusEl.textContent = data.message;
+#             }
+#         });
         
-        // Initialize
-        initBoard();
+#         // Initialize
+#         initBoard();
         
-        // Tell parent we're ready
-        window.parent.postMessage({ type: 'board_ready' }, '*');
-    </script>
-</body>
-</html>
-""", 
-        "description":"Connect 4 is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color."
-    },
-    "tictactoe": {
-        "title": "Tic-Tac-Toe",
-        "html":"""
-    <!DOCTYPE html>
+#         // Tell parent we're ready
+#         window.parent.postMessage({ type: 'board_ready' }, '*');
+#     </script>
+# </body>
+# </html>
+# """
+# })
+
+games_collection.insert_one({
+    "title": "tictactoe",
+    "objective": "Build a Tic Tac Toe bot that can outsmart your opponent",
+    "game_summary": "Tic Tac Toe is a classic two-player game played on a 3x3 grid. Players take turns placing their symbols (X or O) in empty cells, aiming to align three of their symbols horizontally, vertically, or diagonally to win the game.",
+    "win_condition": "The first player to align three of their symbols in a row (horizontally, vertically, or diagonally) wins. If all cells are filled without a winner, the game ends in a draw.",
+    "task": "Create a bot that can play Tic Tac Toe by implementing strategies to block your opponent and create opportunities to win.",
+    "bot_input_format": "Your bot will receive the current game board as a 2D array, where empty cells are represented by ' ', your pieces by 'X', and your opponent's pieces by 'O'.",
+    "bot_output_format": "Your bot should output the cell index (0-8) where it wants to place its symbol, with indices mapped left→right, top→bottom.",
+    "state_format": {"board": [[" " for _ in range(3)] for _ in range(3)], "current_player": "X"},
+    "player_symbols": ["X", "O"],
+    "difficulty": "Easy",
+    "code": r'''
+from typing import Optional
+def is_valid_move(board, pos: int) -> bool:
+    """
+    Check if a move is valid.
+    For Tic Tac Toe, pos is 0-8 representing cells left→right, top→bottom.
+    """
+    if pos < 0 or pos > 8:
+        return False
+    
+    row, col = divmod(pos, 3)
+    return board[row][col] == " "
+
+
+def make_move(board, pos: int, symbol: str) -> bool:
+    """Place the symbol if the move is valid. Return True if move made."""
+    if not is_valid_move(board, pos):
+        return False
+    
+    row, col = divmod(pos, 3)
+    board[row][col] = symbol
+    return True
+
+
+def check_winner(board) -> Optional[str]:
+    """Check for a winner. Returns 'X', 'O', 'draw', or None"""
+    lines = []
+
+    # Rows & Columns
+    for i in range(3):
+        lines.append(board[i])                      # row i
+        lines.append([board[0][i], board[1][i], board[2][i]])  # col i
+
+    # Diagonals
+    lines.append([board[0][0], board[1][1], board[2][2]])
+    lines.append([board[0][2], board[1][1], board[2][0]])
+
+    # Check winners
+    for line in lines:
+        if line[0] != " " and line.count(line[0]) == 3:
+            return line[0]
+
+    # Check for draw (all cells filled)
+    if all(board[r][c] != " " for r in range(3) for c in range(3)):
+        return "draw"
+
+    return None
+''',
+    "html": """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -540,34 +654,8 @@ gameData = {
     </script>
 </body>
 </html>
-""", 
-        "description":"Tic-tac-toe is a two-player strategy board game where players take turns dropping colored discs into a vertical grid. The objective is to be the first to form a horizontal, vertical, or diagonal line of four discs of the same color."
-    }
-}
-
-
-# @app.post("/sign_up")
-# def sign_up(username: str, password_hash: str):
-#     """
-#     Handle user authentication/registration
-#     """
-#     existing_user = user_data.find_one({"username": username})
-    
-#     if existing_user:
-#         # Username exists, check password
-#         if existing_user["password_hash"] == password_hash:
-#             return {"username": username, "rating": existing_user.get("rating", 0)}
-#         else:
-#             raise HTTPException(status_code=400, detail="Username taken or password incorrect")
-    
-#     # Username does not exist, create new user
-#     user_data.insert_one({
-#         "username": username,
-#         "password_hash": password_hash,
-#         "rating": 0
-#     })
-    
-#     return {"username": username, "rating": 0}
+"""
+})
 
 @app.websocket("/ws/{game_type}/{username}")
 async def join_lobby(websocket: WebSocket, game_type: str, username: str):
@@ -577,7 +665,8 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
     await websocket.accept()
     
     # Validate game type
-    if game_type not in games:
+    game = games_collection.find_one({"name": game_type})
+    if not game:
         await websocket.send_json({
             "type": "error",
             "message": f"Invalid game type: {game_type}"
@@ -673,9 +762,25 @@ async def join_lobby(websocket: WebSocket, game_type: str, username: str):
 @app.get("/api/games")
 async def get_games():
     """
-    Return list of available games
+    Return list of available games from database
     """
-    return {"games": games, "gameData": gameData}
+    games = list(games_collection.find({}, {
+        "_id": 0,  # Exclude MongoDB's _id field
+        "name": 1,
+        "title": 1,
+        "difficulty": 1,
+        "game_summary": 1,
+        "objective": 1,
+        "player_symbols": 1
+    }))
+    
+    # Also return the full game data for detailed views
+    game_data = list(games_collection.find({}, {"_id": 0}))
+    
+    return {
+        "games": games,  # List of game summaries
+        "gameData": game_data  # Full game details
+    }
 
 
 @app.get("/api/lobby/{game_type}/status")
@@ -683,90 +788,48 @@ async def get_lobby_status(game_type: str):
     """
     Get current lobby status for a game type
     """
-    if game_type not in games:
+    # Check if game exists in database
+    game = games_collection.find_one({"name": game_type})
+    if not game:
         raise HTTPException(status_code=404, detail="Game type not found")
     
     queue = lobby.queues.get(game_type, {})
-    
+    ready = lobby.ready_players.get(game_type, set())
     
     return {
         "game_type": game_type,
+        "game_title": game.get("title", game_type),
         "total_players": len(queue),
+        "ready_players": len(ready),
         "players": list(queue.keys()),
-        
+        "ready_list": list(ready)
     }
 
-
-@app.get("/api/user/{username}/stats")
-async def get_user_stats(username: str):
-    """
-    Get user statistics from database
-    """
-    user = user_data.find_one({"username": username})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+class GameModel(BaseModel):
+    title: str
+    objective: str
+    game_summary: str
+    win_condition: str
+    task: str
+    bot_input_format: str
+    bot_output_format: str
+    state_format: Dict[str, Any]
+    player_symbols: List[str]
+    difficulty: str
+    code: str
+    html: str
     
-    return {
-        "username": user["username"],
-        "rating": user.get("rating", 0),
-        "wins": user.get("wins", 0),
-        "losses": user.get("losses", 0),
-        "games_played": user.get("games_played", 0)
-    }
-
-
-@app.post("/api/user/{username}/update_stats")
-async def update_user_stats(username: str, win: bool):
-    """
-    Update user stats after a game
-    """
-    user = user_data.find_one({"username": username})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+@app.post("/add_game_to_db")
+async def add_game_to_db(game: GameModel):
+    # Check if a game with this title already exists
+    if games_collection.find_one({"title": game.title}):
+        raise HTTPException(status_code=400, detail="A game with this title already exists.")
     
-    # Calculate new rating (simple ELO-like system)
-    current_rating = user.get("rating", 0)
-    rating_change = 25 if win else -15
-    new_rating = max(0, current_rating + rating_change)
-    
-    # Update stats
-    user_data.update_one(
-        {"username": username},
-        {
-            "$set": {"rating": new_rating},
-            "$inc": {
-                "games_played": 1,
-                "wins" if win else "losses": 1
-            }
-        }
-    )
-    
-    return {
-        "username": username,
-        "new_rating": new_rating,
-        "rating_change": rating_change
-    }
+    # Insert into MongoDB
+    game_dict = game.dict()
+    games_collection.insert_one(game_dict)
 
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Initialize any startup tasks
-    """
-    print("Server starting up...")
-    print(f"Available games: {games}")
-    
-    # Ensure indexes on user collection
-    user_data.create_index("username", unique=True)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Clean up on shutdown
-    """
-    print("Server shutting down...")
-    client.close()
+    return {"message": "Game added successfully!", "title": game.title}
 
 
 # Optional: Serve static files for frontend
