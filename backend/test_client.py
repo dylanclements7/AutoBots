@@ -6,7 +6,7 @@ import json
 async def test_player(username, delay=0):
     await asyncio.sleep(delay)
     
-    uri = f"ws://localhost:8000/ws/connect4/{username}"
+    uri = f"ws://localhost:8000/ws/tictactoe/{username}"
     
     try:
         async with websockets.connect(uri) as websocket:
@@ -29,9 +29,7 @@ async def test_player(username, delay=0):
             
             # Listen for messages
             while True:
-                print("After True")
                 message = await websocket.recv()
-                print("After recv")
                 data = json.loads(message)
                 msg_type = data.get("type")
                 

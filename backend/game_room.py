@@ -155,7 +155,11 @@ class GameRoom:
                     "gameState": self.game_state,
                     "lastMove": {"player": current_player, "move": move}
                 })
-
+                #
+                #
+                #self.game_type call update board figure out that
+                #
+                #
                 winner_result = checkWinner(code, self.game_state)
                 if winner_result:
                     await self._end_game_winner(winner_result)
