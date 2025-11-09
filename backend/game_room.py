@@ -1,3 +1,5 @@
+import requests
+import ast
 import asyncio
 from typing import Dict, Optional
 from fastapi import WebSocket
@@ -5,6 +7,12 @@ import importlib
 import copy
 import requests
 import json
+from pymongo import MongoClient
+
+# MongoDB setup
+client = MongoClient("mongodb://localhost:27017/mydb")
+db = client["clarkathon2025"]
+game_data = db["games"]
 
 class GameRoom:
     def __init__(self, game_type: str, room_id: str, players: Dict[str, WebSocket]):
@@ -17,21 +25,22 @@ class GameRoom:
         self.room_id = room_id
         self.clients = players
         self.game_running = False
+
         
         # Load game module dynamically
-        try:
-            self.game_module = importlib.import_module(f"game_files.{game_type}")
-        except Exception as e:
-            print(f"ERROR: Could not load game module 'game_files.{game_type}': {e}")
-            raise
+        # try:
+            # self.game_module = importlib.import_module(f"game_files.{game_type}")
+        # except Exception as e:
+            # print(f"ERROR: Could not load game module 'game_files.{game_type}': {e}")
+            # raise
+
+
+        self.game = game_data.find_one({ "name": "connect4" })
+        assert self.game
+        self.code = self.game["code"]
         
         # Initialize game state from module
-        starting_state = self.game_module.starting_game_state
-        if hasattr(starting_state, 'copy'):
-            self.game_state = starting_state.copy()
-        else:
-            # Deep copy for nested lists
-            self.game_state = copy.deepcopy(starting_state)
+        self.game_state = get_starting_state(self.code)
         
         # Player management
         self.turn_order = list(players.keys())
@@ -50,11 +59,86 @@ class GameRoom:
         # Winner tracking
         self.winner = None
         
+
+
+
     def _assign_symbols(self):
-        """Assign symbols to players based on game requirements"""
-        symbols = getattr(self.game_module, 'player_symbols', ['X', 'O'])
+        """Assign symbols to players based on sandboxed user code output."""
+
+        # Append a safe print to the user's code so we can extract the player symbols
+        source = self.code + """
+    try:
+        print(player_symbols)
+    except Exception as e:
+        print("[]")
+    """
+
+        # Prepare Piston payload
+        payload = {
+            "language": "python",
+            "version": "3.10.0",
+            "files": [{"content": source}],
+        }
+
+        url = "https://emkc.org/api/v2/piston/execute"
+
+        # Send the code to the Piston sandbox
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            data = response.json()
+        except Exception as e:
+            print("❌ Piston request failed:", e)
+            return
+
+        # Extract the output from Piston's JSON response
+        run_data = data.get("run", {})
+        output = run_data.get("output", "").strip()
+
+        print("🧩 RAW SANDBOX OUTPUT:", repr(output))
+
+        # Try to parse the printed player_symbols
+        try:
+            symbols = ast.literal_eval(output)
+            if not isinstance(symbols, list):
+                raise ValueError("Parsed symbols is not a list")
+        except Exception as e:
+            print("⚠️ Error parsing player_symbols:", e)
+            symbols = []
+
+        # Fallback if sandboxed code didn’t define valid symbols
+        if not symbols:
+            print("⚠️ No valid player_symbols found, using default ['X', 'O']")
+            symbols = ['X', 'O']
+
+        # Assign symbols to players in turn order
         for i, player_id in enumerate(self.turn_order):
             self.player_symbols[player_id] = symbols[i % len(symbols)]
+
+        print(f"✅ ASSIGNED SYMBOLS: {self.player_symbols}")
+
+    # def _assign_symbols(self):
+        # """Assign symbols to players based on game requirements"""
+
+        # source = self.code + f"\nprint(player_symbols)"
+
+        # url = "https://emkc.org/api/v2/piston/execute"
+        # payload = {
+            # "language": "python",
+            # "version": "3.10.0",
+            # "files": [{
+                # "content": source
+            # }]
+        # }
+
+        # response = requests.post(url, json=payload)
+        # data = response.json()
+
+        # output = data.get("run", {}).get("output", "").strip()
+        # symbols = output.strip("'")
+        # print(f"SYMBOLS: {symbols}")
+
+        # for i, player_id in enumerate(self.turn_order):
+            # self.player_symbols[player_id] = symbols[i % len(symbols)]
     
     async def broadcast(self, message: dict, exclude: Optional[str] = None):
         """Send message to all players in the room"""
@@ -98,7 +182,7 @@ class GameRoom:
         self.game_running = True
         
         # Reset game state - FIXED: use deep copy
-        self.game_state = copy.deepcopy(self.game_module.starting_game_state)
+        self.game_state = get_starting_state(self.code)
         self.current_turn = 0
         
         # Send game start with player assignments
@@ -137,9 +221,11 @@ class GameRoom:
                 
                 print(f"{current_player} played move: {move}")
                 
-                filepath = "game_files/" + self.game_type + ".py"  # Fixed path
-                with open(filepath, 'r') as f:
-                    code = f.read()
+                # filepath = "game_files/" + self.game_type + ".py"  # Fixed path
+
+                # with open(filepath, 'r') as f:
+                    # code = f.read()
+
 
                 error, new_board = makeMove(code, self.game_state, move, symbol)
 
@@ -160,7 +246,7 @@ class GameRoom:
                 #self.game_type call update board figure out that
                 #
                 #
-                winner_result = checkWinner(code, self.game_state)
+                winner_result = checkWinner(self.code, self.game_state)
                 if winner_result:
                     await self._end_game_winner(winner_result)
                     break
@@ -322,6 +408,27 @@ def checkWinner(code: str, board):
         return None
     else:
         return output if output else None
+
+def get_starting_state(code: str):
+    """Execute check_winner function via Piston API"""
+
+    source = code + f"\nprint(starting_game_state)"
+
+    url = "https://emkc.org/api/v2/piston/execute"
+    payload = {
+        "language": "python",
+        "version": "3.10.0",
+        "files": [{
+            "content": source
+        }]
+    }
+
+    response = requests.post(url, json=payload)
+    data = response.json()
+
+    output = data.get("run", {}).get("output", "").strip()
+
+    return output
 
 # import asyncio
 # from typing import Dict
