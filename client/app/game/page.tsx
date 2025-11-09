@@ -3,13 +3,9 @@ import GameCard from "@/components/GameCard/GameCard";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import styles from "./page.module.css";
-import { getGames } from "@/lib/api";
+import { getGames } from "@/app/lib/api";
 interface Game {
-  id: string;
-  name: string;
-  description: string;
-  playerCount: string;
-  imageUrl?: string;
+  games: string[]
 }
 
 export default function GameBrowsePage() {
@@ -19,7 +15,7 @@ export default function GameBrowsePage() {
   useEffect(() => {
     // TODO: Replace with actual API call
     // fetch('/api/games').then(res => res.json()).then(setGames)
-    getGames(setGames);
+    getGames(setGames, setLoading);
     // Placeholder data
     
   }, []);
@@ -42,7 +38,7 @@ export default function GameBrowsePage() {
        
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {games.map((game) => (
+          {games && games?.games.map((game) => (
             // <Link
             //   key={game.id}
             //   href={`/game/${game.id}`}

@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-
+import { getQueue } from "@/app/lib/api";
+import  LobbySocket  from "@/app/lib/websockets";
 interface Player {
   id: string;
   name: string;
@@ -10,74 +11,29 @@ interface Player {
   rating?: number;
 }
 
-export default function MatchmakingQueue({gameId}: {gameId: string}) {
+export default function MatchmakingQueue({gameId, name}: {gameId: string, name:string}) {
   const params = useParams();
   
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isReady, setIsReady] = useState(false);
   const [isInQueue, setIsInQueue] = useState(false);
-
+  const [socket, setSocket] = useState(false)
   useEffect(() => {
-    // TODO: Replace with actual API call and WebSocket connection
-    // const ws = new WebSocket(`ws://api/games/${gameId}/queue`);
-    // ws.onmessage = (event) => setPlayers(JSON.parse(event.data));
     
-    // Placeholder data
-    const placeholderPlayers: Player[] = [
-      {
-        id: "player-1",
-        name: "CodeMaster",
-        isReady: true,
-        rating: 1850
-      },
-      {
-        id: "player-2",
-        name: "BotBuilder",
-        isReady: true,
-        rating: 1720
-      },
-      {
-        id: "player-3",
-        name: "AlgoWizard",
-        isReady: false,
-        rating: 1920
-      },
-      {
-        id: "player-4",
-        name: "PyThonPro",
-        isReady: true,
-        rating: 1650
-      },
-      {
-        id: "player-5",
-        name: "JavaJunkie",
-        isReady: false,
-        rating: 1780
-      }
-    ];
+    const interval = setInterval(() => {
+      getQueue(name, setPlayers, setLoading);
+    }, 500); // every 500ms
+  
     
-    setTimeout(() => {
-      setPlayers(placeholderPlayers);
-      setLoading(false);
-    }, 300);
-  }, [gameId]);
+    return () => clearInterval(interval);
+  }, [gameId, name]);
+  const username = localStorage.getItem('user')
 
-  const handleToggleReady = () => {
-    // TODO: Replace with actual API call
-    // fetch(`/api/games/${gameId}/queue/ready`, { method: 'POST', body: JSON.stringify({ ready: !isReady }) })
-    
-    setIsReady(!isReady);
-    if (!isInQueue) {
-      setIsInQueue(true);
-    }
-  };
 
   const handleLeaveQueue = () => {
     // TODO: Replace with actual API call
     // fetch(`/api/games/${gameId}/queue/leave`, { method: 'POST' })
-    
-    setIsReady(false);
+
     setIsInQueue(false);
   };
 
@@ -89,7 +45,7 @@ export default function MatchmakingQueue({gameId}: {gameId: string}) {
     );
   }
 
-  const readyCount = players.filter(p => p.isReady).length;
+
   const totalPlayers = players.length + (isInQueue ? 1 : 0);
 
   return (
@@ -101,22 +57,25 @@ export default function MatchmakingQueue({gameId}: {gameId: string}) {
             {/* {gameId.replace(/-/g, " ")} Matchmaking */}
           </h1>
           <p className="text-muted-foreground">
-            {totalPlayers} player{totalPlayers !== 1 ? 's' : ''} in queue • {readyCount} ready
+            {totalPlayers} player{totalPlayers !== 1 ? 's' : ''} 
           </p>
         </div>
 
         <div className="mb-6 flex gap-4">
+        
+          {socket && <LobbySocket gameType={name} username={username}/>}
           {!isInQueue ? (
             <button
-              onClick={handleToggleReady}
+              onClick={() => setSocket(true)}
               className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
             >
+              
               Join Queue
             </button>
           ) : (
             <>
               <button
-                onClick={handleToggleReady}
+                
                 className={
                   isReady
                     ? "flex-1 bg-muted text-muted-foreground px-6 py-3 rounded-lg hover:bg-muted/80 transition-colors font-semibold"
@@ -149,15 +108,7 @@ export default function MatchmakingQueue({gameId}: {gameId: string}) {
                     <span className="text-sm text-muted-foreground ml-2">Rating: 1500</span>
                   </div>
                 </div>
-                <span
-                  className={
-                    isReady
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {isReady ? "✓ Ready" : "Not Ready"}
-                </span>
+                
               </div>
             )}
             {players.map((player) => (
@@ -178,15 +129,7 @@ export default function MatchmakingQueue({gameId}: {gameId: string}) {
                     )}
                   </div>
                 </div>
-                <span
-                  className={
-                    player.isReady
-                      ? "text-primary font-semibold"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {player.isReady ? "✓ Ready" : "Not Ready"}
-                </span>
+                
               </div>
             ))}
             {players.length === 0 && !isInQueue && (
@@ -199,11 +142,7 @@ export default function MatchmakingQueue({gameId}: {gameId: string}) {
 
         {isInQueue && (
           <div className="mt-6 bg-accent/10 border border-accent rounded-lg p-4 text-center">
-            <p className="text-accent-foreground">
-              {isReady
-                ? "Waiting for match... You will be notified when a game is ready."
-                : "Click 'Ready Up' when you're ready to play!"}
-            </p>
+            
           </div>
         )}
       </div>

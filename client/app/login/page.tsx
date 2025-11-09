@@ -6,7 +6,7 @@ import { authAPI } from "@/app/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,11 +17,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await authAPI.login(email, password);
       
-      // Store token in localStorage (or use a more secure method)
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('user',user);
       
       // Redirect to games page
       router.push('/game');
@@ -43,14 +40,14 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-2">
-                Email
+              <label htmlFor="user" className="block text-sm font-medium mb-2">
+                Username
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="username"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
                 required
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="you@example.com"

@@ -16,7 +16,7 @@ export default function QueueDrawer({children, game}: {children: React.ReactNode
                     <DrawerTitle>{game.name} Queue</DrawerTitle>
                     <DrawerDescription>Join the matchmaking queue for {game.name}</DrawerDescription>
                 </DrawerHeader>
-                <div className={"max-h-[calc(100vh-10rem)] overflow-y-auto max-w-[calc(100vw-10rem)]" }> <MatchmakingQueue gameId={game.id}/></div>
+                <div className={"max-h-[calc(100vh-10rem)] overflow-y-auto max-w-[calc(100vw-10rem)]" }> <MatchmakingQueue name = {game} gameId={game.id}/></div>
                 <DrawerFooter>
                     <button 
                         onClick={() => setOpen(false)}

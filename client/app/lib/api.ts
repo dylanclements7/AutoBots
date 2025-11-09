@@ -28,80 +28,22 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
   }
 }
 
-// Authentication API calls
-export const authAPI = {
-  // Login user
-  login: async (email: string, password: string) => {
-    // TODO: Replace with actual API call
-    // return apiFetch('/auth/login', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ email, password }),
-    // });
-
-    // Placeholder: simulate API delay
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password) {
-          resolve({
-            user: {
-              id: '1',
-              email: email,
-              name: 'Test User',
-            },
-            token: 'fake-jwt-token-' + Date.now(),
-          });
-        } else {
-          reject(new Error('Invalid credentials'));
-        }
-      }, 500);
-    });
-  },
-
-  // Register new user
-  signup: async (email: string, password: string, name: string) => {
-    // TODO: Replace with actual API call
-    // return apiFetch('/auth/signup', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ email, password, name }),
-    // });
-
-    // Placeholder: simulate API delay
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password && name) {
-          resolve({
-            user: {
-              id: '1',
-              email: email,
-              name: name,
-            },
-            token: 'fake-jwt-token-' + Date.now(),
-          });
-        } else {
-          reject(new Error('Invalid signup data'));
-        }
-      }, 500);
-    });
-  },
-
-  // Logout user
-  logout: async () => {
-    // TODO: Replace with actual API call
-    // return apiFetch('/auth/logout', { method: 'POST' });
-
-    // Placeholder
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ success: true });
-      }, 200);
-    });
-  },
-};
 
 
-  export const getGames =  async (setGames: (games: Game[]) => void) => {
+
+  export const getGames =  async (setGames: (games) => void, setLoading) => {
 
     const games = await apiFetch('/api/games');
+    console.log(games);
     setGames(games);
+    setLoading(false)
+  }
+
+  export const getQueue =  async (gameName: string, setQueue: (players) => void, setLoading) => {
+
+    const queue = await apiFetch(`/api/lobby/${gameName}/status`);
+    console.log('queue', queue);
+    setQueue(queue?.players)
+    setLoading(false)
   }
 
