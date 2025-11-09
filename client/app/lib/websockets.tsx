@@ -49,7 +49,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const url = `ws://localhost:8000/ws/${gameType}/${username}`;
+    const url = `ws://140.232.179.222:3000/ws/${gameType}/${username}`;
     const ws = new WebSocket(url);
 
     ws.onopen = () => {

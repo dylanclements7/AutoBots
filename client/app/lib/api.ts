@@ -1,5 +1,5 @@
 // API base URL - replace with your actual API endpoint
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://140.232.179.222:3000';
 
 // Generic fetch wrapper
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
