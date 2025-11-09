@@ -788,21 +788,18 @@ async def get_lobby_status(game_type: str):
     """
     Get current lobby status for a game type
     """
-    # Check if game exists in database
-    game = games_collection.find_one({"name": game_type})
-    if not game:
+    games = [game["name"] for game in games_collection.find({}, {"name": 1})]
+    if game_type not in games:
         raise HTTPException(status_code=404, detail="Game type not found")
     
     queue = lobby.queues.get(game_type, {})
-    ready = lobby.ready_players.get(game_type, set())
+    
     
     return {
         "game_type": game_type,
-        "game_title": game.get("title", game_type),
         "total_players": len(queue),
-        "ready_players": len(ready),
         "players": list(queue.keys()),
-        "ready_list": list(ready)
+        
     }
 
 class GameModel(BaseModel):
