@@ -14,7 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,21 +28,24 @@ export default function RootLayout({
           <div className="max-w-100vh mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-8">
-                <Link href="/" className="text-2xl font-bold text-primary hover:text-primary/80 transition-colors">
-                  BotArena
+                <Link
+                  href="/"
+                  className="text-2xl font-bold text-primary hover:text-primary/80 transition-colors"
+                >
+                  AutoBots
                 </Link>
                 <div className="flex gap-4">
                   <Link
                     href="/game"
                     className="text-foreground hover:text-primary transition-colors font-medium"
                   >
-                    Games
+                    Play
                   </Link>
                   <Link
-                    href="/leaderboard"
+                    href="/creator"
                     className="text-muted-foreground hover:text-primary transition-colors font-medium"
                   >
-                    Leaderboard
+                    Create
                   </Link>
                 </div>
               </div>
@@ -55,9 +57,7 @@ export default function RootLayout({
             </div>
           </div>
         </nav>
-        <WebSocketProvider>
-          {children}
-        </WebSocketProvider>
+        <WebSocketProvider>{children}</WebSocketProvider>
       </body>
     </html>
   );
