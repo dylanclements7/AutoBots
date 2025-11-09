@@ -1,15 +1,24 @@
-
-
 import asyncio
 from typing import Dict, Optional
 from fastapi import WebSocket
 import importlib
 import copy
+import requests
+import json
+import ast
+from pymongo import MongoClient
+
+# MongoDB setup
+client = MongoClient("mongodb://localhost:27017/")
+db = client["clarkathon2025"]
+game_data = db["games"]
+
+
 
 class GameRoom:
     def __init__(self, game_type: str, room_id: str, players: Dict[str, WebSocket]):
         """
-        game_type: the type of game (connect_four, tic_tac_toe, etc.)
+        game_type: the type of game (connect4, tictactoe, etc.)
         room_id: unique room identifier
         players: dict of {player_id: websocket} assigned to this room
         """
@@ -17,21 +26,27 @@ class GameRoom:
         self.room_id = room_id
         self.clients = players
         self.game_running = False
+        self.game = game_data.find_one({ "title": f"{game_type}" })
         
-        # Load game module dynamically
-        try:
-            self.game_module = importlib.import_module(f"game_files.{game_type}")
-        except Exception as e:
-            print(f"ERROR: Could not load game module 'game_files.{game_type}': {e}")
-            raise
+        # MongoDB returns these as native Python types - no json.loads needed
+        symbols = self.game['player_symbols']  # Already a list like ['X', 'O']
+        self.starting_state = self.game['state_format']  # Already parsed
         
-        # Initialize game state from module
-        starting_state = self.game_module.starting_game_state
-        if hasattr(starting_state, 'copy'):
-            self.game_state = starting_state.copy()
+        # Check if state_format is a dict with 'board' key, or just the board itself
+        if isinstance(self.starting_state, dict) and 'board' in self.starting_state:
+            self.state_is_dict = True
+            self.starting_board = self.starting_state['board']
         else:
-            # Deep copy for nested lists
-            self.game_state = copy.deepcopy(starting_state)
+            self.state_is_dict = False
+            self.starting_board = self.starting_state
+        
+        # Initialize board and game_state
+        if self.state_is_dict:
+            self.game_state = copy.deepcopy(self.starting_state)
+            self.board = copy.deepcopy(self.starting_board)
+        else:
+            self.board = copy.deepcopy(self.starting_board)
+            self.game_state = self.board
         
         # Player management
         self.turn_order = list(players.keys())
@@ -43,8 +58,9 @@ class GameRoom:
         # Bot code storage (not executed server-side, just tracked)
         self.bot_codes: Dict[str, bool] = {}
         
-        # Player symbols (X, O, etc.)
-        self.player_symbols = {}
+        # Player symbols (X, O, etc.) - will be a dict mapping player_id to symbol
+        self.player_symbols = {}  # Initialize as empty dict
+        self.available_symbols = symbols  # Store the list of available symbols
         self._assign_symbols()
         
         # Winner tracking
@@ -52,9 +68,9 @@ class GameRoom:
         
     def _assign_symbols(self):
         """Assign symbols to players based on game requirements"""
-        symbols = getattr(self.game_module, 'player_symbols', ['X', 'O'])
+        # Use the available_symbols list to assign to each player
         for i, player_id in enumerate(self.turn_order):
-            self.player_symbols[player_id] = symbols[i % len(symbols)]
+            self.player_symbols[player_id] = self.available_symbols[i % len(self.available_symbols)]
     
     async def broadcast(self, message: dict, exclude: Optional[str] = None):
         """Send message to all players in the room"""
@@ -72,7 +88,6 @@ class GameRoom:
             await self.clients[player_id].send_json(message)
         except Exception as e:
             print(f"Error sending to {player_id}: {e}")
-    
     
     async def handle_bot_submission(self, player_id: str):
         """Handle when a player submits their bot code"""
@@ -92,15 +107,20 @@ class GameRoom:
             print(f"Queued move from {player_id} in room {self.room_id}: {move}")
     
     async def run_game(self):
-        print('running game')
         """Main game loop - requests moves from players and validates them"""
         if self.game_running:
             return
         
         self.game_running = True
         
-        # Reset game state - FIXED: use deep copy
-        self.game_state = copy.deepcopy(self.game_module.starting_game_state)
+        # Reset game state - use deep copy to avoid mutation
+        if self.state_is_dict:
+            self.game_state = copy.deepcopy(self.starting_state)
+            self.board = copy.deepcopy(self.starting_board)
+        else:
+            self.board = copy.deepcopy(self.starting_board)
+            self.game_state = self.board
+        
         self.current_turn = 0
         
         # Send game start with player assignments
@@ -139,24 +159,33 @@ class GameRoom:
                 
                 print(f"{current_player} played move: {move}")
                 
-                # Validate and make move using game module
-                if not self.game_module.is_valid_move(self.game_state, move):
-                    print(f"Invalid move from {current_player}: {move}")
+                # Get code directly from MongoDB - it's already a string
+                code = self.game['code']
+
+                # Pass only the board to the game functions, not the full state dict
+                error, new_board = makeMove(code, self.board, move, symbol)
+
+                if error:
+                    # Handle invalid move
                     await self._end_game_invalid_move(current_player)
                     break
+
+                # Update the board
+                self.board = new_board
                 
-                # Apply the move
-                self.game_module.make_move(self.game_state, move, symbol)
-                
-                # Broadcast board update
+                # Update game_state (either just the board or the dict with board)
+                if self.state_is_dict:
+                    self.game_state['board'] = new_board
+                else:
+                    self.game_state = new_board
+
                 await self.broadcast({
                     "type": "board_update",
                     "gameState": self.game_state,
                     "lastMove": {"player": current_player, "move": move}
                 })
                 
-                # Check for winner
-                winner_result = self.game_module.check_winner(self.game_state)
+                winner_result = checkWinner(code, self.board)
                 if winner_result:
                     await self._end_game_winner(winner_result)
                     break
@@ -214,7 +243,7 @@ class GameRoom:
     async def _end_game_winner(self, winner_result):
         """End game with a winner or draw"""
         if winner_result == "draw":
-            self.winner = "draw"  # ADD THIS LINE
+            self.winner = "draw"
             await self.broadcast({
                 "type": "game_over",
                 "roomId": self.room_id,
@@ -230,7 +259,7 @@ class GameRoom:
                     winner_player = player_id
                     break
             
-            self.winner = winner_player  # MOVE THIS OUTSIDE THE LOOP
+            self.winner = winner_player
             
             await self.broadcast({
                 "type": "game_over",
@@ -261,3 +290,60 @@ class GameRoom:
             }, exclude=player_id)
             
             self.game_running = False
+
+def makeMove(code: str, board, move, symbol):
+    """Execute make_move function via Piston API"""
+    # Convert board to proper JSON string
+    board_json = json.dumps(board)
+
+    source = code + f"\nresult = make_move({board_json}, {move}, '{symbol}')\nprint(result)"
+
+    url = "https://emkc.org/api/v2/piston/execute"
+    payload = {
+        "language": "python",
+        "version": "3.10.0",
+        "files": [{
+            "content": source
+        }]
+    }
+
+    response = requests.post(url, json=payload)
+    data = response.json()
+
+    output = data.get("run", {}).get("output", "").strip()
+
+    try:
+        result = eval(output)  # Safely parse the tuple
+        return result  # Returns (error, board)
+    except:
+        print(f"Error parsing output: {output}")
+        return (True, board)  # Return error if parsing fails
+
+
+def checkWinner(code: str, board):
+    """Execute check_winner function via Piston API"""
+    # Convert board to proper JSON string
+    board_json = json.dumps(board)
+
+    source = code + f"\nresult = check_winner({board_json})\nprint(result)"
+
+    url = "https://emkc.org/api/v2/piston/execute"
+    payload = {
+        "language": "python",
+        "version": "3.10.0",
+        "files": [{
+            "content": source
+        }]
+    }
+
+    response = requests.post(url, json=payload)
+    data = response.json()
+
+    output = data.get("run", {}).get("output", "").strip()
+
+    if output in ["'X'", "'O'", "'draw'"]:
+        return output.strip("'")
+    elif output == "None":
+        return None
+    else:
+        return output if output else None
